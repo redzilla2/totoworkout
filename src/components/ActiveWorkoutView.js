@@ -1,0 +1,239 @@
+import { appState } from '../state.js';
+import { RestTimer } from '../utils/timer.js';
+
+let currentRestTimer = null;
+
+export function renderActiveWorkoutView(container) {
+  const state = appState.getState();
+  const session = state.activeWorkout;
+
+  if (!session) {
+    container.innerHTML = `
+      <div class="glass-card" style="text-align: center; padding: 40px 20px;">
+        <div style="font-size: 48px; margin-bottom: 12px;">🏋️</div>
+        <div style="font-size: 1.25rem; font-weight: 800; margin-bottom: 8px;">No Active Workout Session</div>
+        <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 24px;">
+          Choose a routine from the Routines tab or start a blank workout session to begin tracking in real time!
+        </div>
+        <button class="btn" id="start-quick-session-btn">
+          ⚡ Start Blank Workout Session
+        </button>
+      </div>
+    `;
+
+    container.querySelector('#start-quick-session-btn')?.addEventListener('click', () => {
+      appState.startWorkoutFromRoutine({
+        name: 'Quick Workout',
+        category: 'Full Body',
+        exercises: [
+          { exerciseId: 'ex_bench_press', defaultSets: 3, defaultReps: 10, defaultWeight: 60 },
+          { exerciseId: 'ex_squat', defaultSets: 3, defaultReps: 10, defaultWeight: 80 },
+          { exerciseId: 'ex_lat_pulldown', defaultSets: 3, defaultReps: 10, defaultWeight: 50 }
+        ]
+      });
+    });
+    return;
+  }
+
+  // Calculate elapsed time & total volume completed
+  const elapsedSecs = Math.max(0, Math.floor((Date.now() - session.startTime) / 1000));
+  const elapsedMins = Math.floor(elapsedSecs / 60);
+
+  let activeVolume = 0;
+  let totalSets = 0;
+  let completedSets = 0;
+
+  session.exercises.forEach(ex => {
+    ex.sets.forEach(s => {
+      totalSets++;
+      if (s.completed) {
+        completedSets++;
+        activeVolume += (s.reps * (s.weight || 1));
+      }
+    });
+  });
+
+  container.innerHTML = `
+    <!-- Active Header Card -->
+    <div class="glass-card" style="border-left: 5px solid ${session.color || '#6366f1'}; padding: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div>
+          <span style="font-size: 1.3rem; font-weight: 800;">${session.icon || '🏋️'} ${session.name}</span>
+          <span class="badge" style="background: ${session.color || '#6366f1'}22; color: ${session.color || '#6366f1'}; margin-left: 6px;">${session.category}</span>
+        </div>
+        <button class="btn btn-danger" id="cancel-active-btn" style="width: auto; padding: 6px 12px; font-size: 0.8rem;">
+          End / Discard
+        </button>
+      </div>
+
+      <div style="display: flex; justify-content: space-around; background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: var(--radius-md); text-align: center;">
+        <div>
+          <div style="font-size: 1.1rem; font-weight: 800; color: #a5b4fc;">⏱️ ${elapsedMins}m</div>
+          <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">ELAPSED</div>
+        </div>
+        <div style="width: 1px; background: var(--border-glass);"></div>
+        <div>
+          <div style="font-size: 1.1rem; font-weight: 800; color: #10b981;">✅ ${completedSets}/${totalSets}</div>
+          <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">SETS DONE</div>
+        </div>
+        <div style="width: 1px; background: var(--border-glass);"></div>
+        <div>
+          <div style="font-size: 1.1rem; font-weight: 800; color: #f59e0b;">⚡ ${activeVolume.toLocaleString()}</div>
+          <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">VOLUME (KG)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rest Timer Box Widget -->
+    <div class="rest-timer-box" id="rest-timer-widget" style="display: ${currentRestTimer && currentRestTimer.secondsLeft > 0 ? 'block' : 'none'};">
+      <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.05em;">REST COUNTDOWN</div>
+      <div class="timer-digits" id="rest-timer-digits">00:60</div>
+      <div style="display: flex; justify-content: center; gap: 8px; margin-top: 8px;">
+        <button class="btn btn-secondary" id="add-10s-btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">+10s</button>
+        <button class="btn btn-secondary" id="skip-rest-btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">Skip Rest</button>
+      </div>
+    </div>
+
+    <!-- Exercises Checklist -->
+    <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;">
+      ${session.exercises.map((ex, exIndex) => `
+        <div class="glass-card" style="margin-bottom: 0; padding: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="font-weight: 700; font-size: 1.05rem;">💪 ${ex.name}</div>
+            <button class="btn btn-secondary add-set-btn" data-ex="${exIndex}" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">+ Set</button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 32px 1fr 1fr 40px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding: 0 10px 6px 10px;">
+            <div>SET</div>
+            <div>WEIGHT (KG)</div>
+            <div>REPS</div>
+            <div style="text-align: center;">DONE</div>
+          </div>
+
+          ${ex.sets.map((set, setIndex) => `
+            <div class="set-row">
+              <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); width: 24px;">#${setIndex + 1}</div>
+              
+              <input type="number" class="form-input weight-input" data-ex="${exIndex}" data-set="${setIndex}" value="${set.weight}" style="padding: 6px 8px; font-size: 0.85rem;">
+              
+              <input type="number" class="form-input reps-input" data-ex="${exIndex}" data-set="${setIndex}" value="${set.reps}" style="padding: 6px 8px; font-size: 0.85rem;">
+
+              <button class="set-check ${set.completed ? 'completed' : ''}" data-ex="${exIndex}" data-set="${setIndex}">
+                ${set.completed ? '✓' : ''}
+              </button>
+            </div>
+          `).join('')}
+        </div>
+      `).join('')}
+    </div>
+
+    <!-- Finish Session Floating Action -->
+    <button class="btn" id="finish-workout-btn" style="background: linear-gradient(135deg, var(--accent-emerald), #059669); font-size: 1.1rem; padding: 16px;">
+      🏆 Finish & Save Workout
+    </button>
+  `;
+
+  // Attach Event Handlers
+  container.querySelector('#cancel-active-btn')?.addEventListener('click', () => {
+    if (confirm('Discard current workout session?')) {
+      if (currentRestTimer) currentRestTimer.stop();
+      appState.cancelActiveWorkout();
+    }
+  });
+
+  container.querySelector('#finish-workout-btn')?.addEventListener('click', () => {
+    if (currentRestTimer) currentRestTimer.stop();
+    appState.finishActiveWorkout();
+  });
+
+  // Set Checkbox click -> completes set and triggers Rest Timer
+  container.querySelectorAll('.set-check').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const exIdx = parseInt(btn.getAttribute('data-ex'), 10);
+      const setIdx = parseInt(btn.getAttribute('data-set'), 10);
+
+      const targetSet = session.exercises[exIdx].sets[setIdx];
+      targetSet.completed = !targetSet.completed;
+
+      appState.updateActiveWorkout(session);
+
+      // Trigger Rest Timer when completing a set
+      if (targetSet.completed) {
+        startRestCountdown(60, container);
+      }
+
+      renderActiveWorkoutView(container);
+    });
+  });
+
+  // Input listeners for weight & reps updates
+  container.querySelectorAll('.weight-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const exIdx = parseInt(input.getAttribute('data-ex'), 10);
+      const setIdx = parseInt(input.getAttribute('data-set'), 10);
+      session.exercises[exIdx].sets[setIdx].weight = parseFloat(input.value || 0);
+      appState.updateActiveWorkout(session);
+    });
+  });
+
+  container.querySelectorAll('.reps-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const exIdx = parseInt(input.getAttribute('data-ex'), 10);
+      const setIdx = parseInt(input.getAttribute('data-set'), 10);
+      session.exercises[exIdx].sets[setIdx].reps = parseInt(input.value || 0, 10);
+      appState.updateActiveWorkout(session);
+    });
+  });
+
+  // Add Set button listener
+  container.querySelectorAll('.add-set-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const exIdx = parseInt(btn.getAttribute('data-ex'), 10);
+      const lastSet = session.exercises[exIdx].sets[session.exercises[exIdx].sets.length - 1] || { reps: 10, weight: 20 };
+      session.exercises[exIdx].sets.push({
+        setNum: session.exercises[exIdx].sets.length + 1,
+        reps: lastSet.reps,
+        weight: lastSet.weight,
+        completed: false
+      });
+      appState.updateActiveWorkout(session);
+      renderActiveWorkoutView(container);
+    });
+  });
+
+  // Rest Timer Controls
+  container.querySelector('#add-10s-btn')?.addEventListener('click', () => {
+    if (currentRestTimer) currentRestTimer.addTime(10);
+  });
+
+  container.querySelector('#skip-rest-btn')?.addEventListener('click', () => {
+    if (currentRestTimer) {
+      currentRestTimer.stop();
+      const widget = container.querySelector('#rest-timer-widget');
+      if (widget) widget.style.display = 'none';
+    }
+  });
+}
+
+function startRestCountdown(seconds, container) {
+  if (currentRestTimer) currentRestTimer.stop();
+
+  const widget = container.querySelector('#rest-timer-widget');
+  const digits = container.querySelector('#rest-timer-digits');
+  if (widget) widget.style.display = 'block';
+
+  currentRestTimer = new RestTimer(
+    (secsLeft) => {
+      if (digits) {
+        const mins = Math.floor(secsLeft / 60);
+        const s = secsLeft % 60;
+        digits.textContent = `${String(mins).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      }
+    },
+    () => {
+      if (widget) widget.style.display = 'none';
+    }
+  );
+
+  currentRestTimer.start(seconds);
+}
