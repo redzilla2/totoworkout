@@ -117,7 +117,7 @@ export function renderActiveWorkoutView(container) {
             <div class="set-row">
               <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); width: 24px;">#${setIndex + 1}</div>
               
-              <input type="number" class="form-input weight-input" data-ex="${exIndex}" data-set="${setIndex}" value="${set.weight}" style="padding: 6px 8px; font-size: 0.85rem;">
+              <input type="number" class="form-input weight-input" data-ex="${exIndex}" data-set="${setIndex}" value="${set.weight}" step="0.5" min="0" style="padding: 6px 8px; font-size: 0.85rem;">
               
               <input type="number" class="form-input reps-input" data-ex="${exIndex}" data-set="${setIndex}" value="${set.reps}" style="padding: 6px 8px; font-size: 0.85rem;">
 
