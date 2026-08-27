@@ -7,9 +7,25 @@ import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 const STORAGE_KEY = 'totoworkouts_app_state_v4'; // Version bump for streak flag sync
 const CLOUD_SAVE_DEBOUNCE_MS = 1000;
 
+// Day-of-week (0=Sun..6=Sat) -> routineId|null. Defaults to the Upper/Lower Split
+// (Anthony's current program) on Mon/Tue/Thu/Fri, rest days elsewhere — fully
+// editable per day from the Weekly Schedule editor.
+function defaultSchedule() {
+  return {
+    0: null,
+    1: 'routine_ul_upper_1',
+    2: 'routine_ul_lower_1',
+    3: null,
+    4: 'routine_ul_upper_2',
+    5: 'routine_ul_lower_2',
+    6: null
+  };
+}
+
 function defaultAppData() {
   return {
     routines: DEFAULT_ROUTINES,
+    schedule: defaultSchedule(),
     history: generateSampleHistory(),
     activeWorkout: null,
     currentView: 'calendar',
@@ -24,6 +40,7 @@ function loadLocalData() {
       const parsed = JSON.parse(saved);
       return {
         routines: parsed.routines || DEFAULT_ROUTINES,
+        schedule: parsed.schedule || defaultSchedule(),
         history: parsed.history || generateSampleHistory(),
         activeWorkout: parsed.activeWorkout || null,
         currentView: parsed.currentView || 'calendar',
@@ -111,6 +128,7 @@ class AppState {
       this.state = {
         exercises: DEFAULT_EXERCISES,
         routines: cloud.routines || DEFAULT_ROUTINES,
+        schedule: cloud.schedule || defaultSchedule(),
         history: cloud.history || generateSampleHistory(),
         activeWorkout: cloud.activeWorkout || null,
         currentView: cloud.currentView || 'calendar',
@@ -169,6 +187,7 @@ class AppState {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         routines: this.state.routines,
+        schedule: this.state.schedule,
         history: this.state.history,
         activeWorkout: this.state.activeWorkout,
         currentView: this.state.currentView,
@@ -191,6 +210,7 @@ class AppState {
       user_id: this.session.user.id,
       data: {
         routines: this.state.routines,
+        schedule: this.state.schedule,
         history: this.state.history,
         activeWorkout: this.state.activeWorkout,
         currentView: this.state.currentView,
@@ -341,6 +361,50 @@ class AppState {
 
   deleteRoutine(routineId) {
     this.state.routines = this.state.routines.filter(r => r.id !== routineId);
+    // Clear any day slots that pointed at the now-deleted routine.
+    Object.keys(this.state.schedule || {}).forEach(day => {
+      if (this.state.schedule[day] === routineId) this.state.schedule[day] = null;
+    });
+    this.notify();
+  }
+
+  // --- Weekly Schedule editor ---
+
+  // Assigns (or clears, with routineId = null) the routine that runs on a given
+  // day of week (0=Sun..6=Sat).
+  setDaySchedule(dayOfWeek, routineId) {
+    this.state.schedule[dayOfWeek] = routineId || null;
+    this.notify();
+  }
+
+  // Creates a fresh empty routine and assigns it to the given day — used when
+  // adding the first exercise to a day that's currently a rest day.
+  createRoutineForDay(dayOfWeek, name) {
+    const routine = {
+      id: 'routine_custom_' + Date.now(),
+      name: name || 'Custom Day',
+      category: 'Custom',
+      icon: '🏋️',
+      color: '#6366f1',
+      exercises: []
+    };
+    this.state.routines.unshift(routine);
+    this.state.schedule[dayOfWeek] = routine.id;
+    this.notify();
+    return routine;
+  }
+
+  addExerciseToRoutine(routineId, exerciseEntry) {
+    const routine = this.state.routines.find(r => r.id === routineId);
+    if (!routine) return;
+    routine.exercises.push(exerciseEntry);
+    this.notify();
+  }
+
+  removeExerciseFromRoutine(routineId, exerciseIndex) {
+    const routine = this.state.routines.find(r => r.id === routineId);
+    if (!routine) return;
+    routine.exercises.splice(exerciseIndex, 1);
     this.notify();
   }
 

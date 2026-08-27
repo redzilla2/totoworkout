@@ -67,3 +67,21 @@ export function calculate1RM(weight, reps) {
   if (reps === 1) return weight;
   return Math.round(weight * (1 + reps / 30));
 }
+
+// Indexed to match JS Date#getDay() (0 = Sunday ... 6 = Saturday)
+export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export const DAY_SHORT_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+/**
+ * Looks up the routine (if any) scheduled for a given date's day-of-week,
+ * via state.schedule (a { [dayOfWeek]: routineId|null } map).
+ */
+export function getScheduledRoutine(state, dateStr) {
+  if (!dateStr || !state || !state.schedule) return null;
+  const parts = dateStr.split('-');
+  if (parts.length < 3) return null;
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  const routineId = state.schedule[d.getDay()];
+  if (!routineId) return null;
+  return (state.routines || []).find(r => r.id === routineId) || null;
+}
