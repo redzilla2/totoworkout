@@ -4,6 +4,7 @@ import { renderActiveWorkoutView } from './components/ActiveWorkoutView.js';
 import { renderRoutinesView } from './components/RoutinesView.js';
 import { renderAnalyticsView } from './components/AnalyticsView.js';
 import { renderAuthView } from './components/AuthView.js';
+import { renderUpdatePasswordView } from './components/UpdatePasswordView.js';
 
 export async function initApp() {
   const appRoot = document.getElementById('app');
@@ -16,6 +17,11 @@ export async function initApp() {
           Loading...
         </div>
       `;
+      return;
+    }
+
+    if (appState.needsPasswordReset()) {
+      renderUpdatePasswordView(appRoot, { onDone: () => appState.completePasswordRecovery() });
       return;
     }
 
