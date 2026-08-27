@@ -3,6 +3,16 @@ import { RestTimer } from '../utils/timer.js';
 
 let currentRestTimer = null;
 
+// Which exercise card the rest countdown widget should render inside (instead
+// of one fixed widget pinned near the top of the page, which was invisible
+// once you'd scrolled down to a later exercise), and whether it should be
+// showing at all right now. Explicit flag rather than inferring visibility
+// from currentRestTimer.secondsLeft > 0 — .stop() doesn't zero that out, so
+// reading it after Skip Rest/Cancel/Finish could resurrect a stale countdown
+// on the next render.
+let restingExerciseIndex = null;
+let restTimerVisible = false;
+
 // Elapsed-time clock: module-level like currentRestTimer, so it survives the
 // full re-renders that fire on every set-check / add-set / etc.
 let elapsedTimerId = null;
@@ -86,16 +96,6 @@ export function renderActiveWorkoutView(container) {
       </div>
     </div>
 
-    <!-- Rest Timer Box Widget -->
-    <div class="rest-timer-box" id="rest-timer-widget" style="display: ${currentRestTimer && currentRestTimer.secondsLeft > 0 ? 'block' : 'none'};">
-      <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.05em;">REST COUNTDOWN</div>
-      <div class="timer-digits" id="rest-timer-digits">00:60</div>
-      <div style="display: flex; justify-content: center; gap: 8px; margin-top: 8px;">
-        <button class="btn btn-secondary" id="add-10s-btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">+10s</button>
-        <button class="btn btn-secondary" id="skip-rest-btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">Skip Rest</button>
-      </div>
-    </div>
-
     <!-- Exercises Checklist -->
     <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;">
       ${session.exercises.map((ex, exIndex) => `
@@ -117,6 +117,19 @@ export function renderActiveWorkoutView(container) {
               ${renderRestOptions(ex.restSeconds || 60)}
             </select>
           </div>
+
+          ${restTimerVisible && restingExerciseIndex === exIndex ? `
+            <!-- Rest Timer Box Widget — rendered right above this exercise's own set
+                 rows so it's visible no matter how far down the page you've scrolled. -->
+            <div class="rest-timer-box" id="rest-timer-widget" style="margin-bottom: 16px;">
+              <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.05em;">REST COUNTDOWN</div>
+              <div class="timer-digits" id="rest-timer-digits">00:00</div>
+              <div style="display: flex; justify-content: center; gap: 8px; margin-top: 8px;">
+                <button class="btn btn-secondary" id="add-10s-btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">+10s</button>
+                <button class="btn btn-secondary" id="skip-rest-btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">Skip Rest</button>
+              </div>
+            </div>
+          ` : ''}
 
           <div style="display: grid; grid-template-columns: 28px 1fr 1fr 56px 28px; gap: 8px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding: 0 12px 6px 12px;">
             <div>SET</div>
@@ -177,6 +190,8 @@ export function renderActiveWorkoutView(container) {
   container.querySelector('#cancel-active-btn')?.addEventListener('click', () => {
     if (confirm('Discard current workout session?')) {
       if (currentRestTimer) currentRestTimer.stop();
+      restTimerVisible = false;
+      restingExerciseIndex = null;
       stopElapsedTimer();
       appState.cancelActiveWorkout();
     }
@@ -184,6 +199,8 @@ export function renderActiveWorkoutView(container) {
 
   container.querySelector('#finish-workout-btn')?.addEventListener('click', () => {
     if (currentRestTimer) currentRestTimer.stop();
+    restTimerVisible = false;
+    restingExerciseIndex = null;
     stopElapsedTimer();
     appState.finishActiveWorkout();
   });
@@ -199,8 +216,15 @@ export function renderActiveWorkoutView(container) {
 
       appState.updateActiveWorkout(session);
 
+      // Mark which exercise should show the widget *before* re-rendering, so the
+      // render below actually includes it in that exercise's card.
+      if (targetSet.completed) {
+        restingExerciseIndex = exIdx;
+        restTimerVisible = true;
+      }
+
       // Re-render first so the countdown (started below) is the last thing to touch
-      // the DOM — starting it before this render meant the render's static "00:60"
+      // the DOM — starting it before this render meant the render's static "00:00"
       // placeholder would immediately stomp the correct just-started digits.
       renderActiveWorkoutView(container);
 
@@ -272,6 +296,13 @@ export function renderActiveWorkoutView(container) {
       const exIdx = parseInt(btn.getAttribute('data-ex'), 10);
       const exName = session.exercises[exIdx]?.name || 'this exercise';
       if (confirm(`Remove "${exName}" from this workout?`)) {
+        // Deleting the exercise currently resting would otherwise leave the
+        // countdown running with nowhere left to render its widget.
+        if (restingExerciseIndex === exIdx) {
+          if (currentRestTimer) currentRestTimer.stop();
+          restTimerVisible = false;
+          restingExerciseIndex = null;
+        }
         session.exercises.splice(exIdx, 1);
         appState.updateActiveWorkout(session);
         renderActiveWorkoutView(container);
@@ -322,6 +353,8 @@ export function renderActiveWorkoutView(container) {
   container.querySelector('#skip-rest-btn')?.addEventListener('click', () => {
     if (currentRestTimer) {
       currentRestTimer.stop();
+      restTimerVisible = false;
+      restingExerciseIndex = null;
       const widget = container.querySelector('#rest-timer-widget');
       if (widget) widget.style.display = 'none';
     }
@@ -385,6 +418,8 @@ function startRestCountdown(seconds, container) {
       }
     },
     () => {
+      restTimerVisible = false;
+      restingExerciseIndex = null;
       const widget = container.querySelector('#rest-timer-widget');
       if (widget) widget.style.display = 'none';
     }
