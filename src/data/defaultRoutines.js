@@ -72,5 +72,72 @@ export const DEFAULT_ROUTINES = [
       { exerciseId: 'ex_db_glute_bridge', defaultSets: 2, defaultReps: 12, defaultWeight: 24 },
       { exerciseId: 'ex_single_leg_calf_raise', defaultSets: 2, defaultReps: 15, defaultWeight: 10 }
     ]
+  },
+
+  // Upper/Lower Split - 6 Week Program (4-day split, run for 6 weeks with progressive overload)
+  {
+    id: 'routine_ul_upper_1',
+    name: 'Upper 1 (Monday)',
+    category: 'Upper Body',
+    icon: '💪',
+    color: '#0ea5e9',
+    exercises: [
+      { exerciseId: 'ex_bench_press', defaultSets: 3, defaultReps: 5, defaultWeight: 0, repRange: '5-8' },
+      { exerciseId: 'ex_dumbbell_ohp', defaultSets: 3, defaultReps: 6, defaultWeight: 0, repRange: '6-10' },
+      { exerciseId: 'ex_weighted_chinup', defaultSets: 3, defaultReps: 6, defaultWeight: 0, repRange: '6-10' },
+      { exerciseId: 'ex_single_arm_db_row', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_cable_lateral_raise', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_close_grip_bench', defaultSets: 3, defaultReps: 6, defaultWeight: 0, repRange: '6-10' },
+      { exerciseId: 'ex_tricep_rope_pushdown', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' }
+    ]
+  },
+  {
+    id: 'routine_ul_lower_1',
+    name: 'Lower 1 (Tuesday)',
+    category: 'Lower Body',
+    icon: '🦵',
+    color: '#22c55e',
+    exercises: [
+      { exerciseId: 'ex_squat', defaultSets: 3, defaultReps: 5, defaultWeight: 0, repRange: '5-8' },
+      { exerciseId: 'ex_rdl', defaultSets: 3, defaultReps: 6, defaultWeight: 0, repRange: '6-10' },
+      { exerciseId: 'ex_leg_press', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_lunges', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-10' },
+      { exerciseId: 'ex_calf_raise_standing', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_abs_triset', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: 'triset' },
+      { exerciseId: 'ex_barbell_curl', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' }
+    ]
+  },
+  {
+    id: 'routine_ul_upper_2',
+    name: 'Upper 2 (Thursday)',
+    category: 'Upper Body',
+    icon: '🔥',
+    color: '#a855f7',
+    exercises: [
+      { exerciseId: 'ex_incline_db_bench', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_barbell_ohp', defaultSets: 3, defaultReps: 5, defaultWeight: 0, repRange: '5-8' },
+      { exerciseId: 'ex_barbell_row', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_lat_pulldown', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12-15' },
+      { exerciseId: 'ex_dips', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_cable_lateral_raise', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-13' },
+      { exerciseId: 'ex_skullcrushers', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' }
+    ]
+  },
+  {
+    id: 'routine_ul_lower_2',
+    name: 'Lower 2 (Friday)',
+    category: 'Lower Body',
+    icon: '⚡',
+    color: '#f97316',
+    exercises: [
+      { exerciseId: 'ex_deadlift', defaultSets: 3, defaultReps: 5, defaultWeight: 0, repRange: '5' },
+      { exerciseId: 'ex_front_squat', defaultSets: 3, defaultReps: 6, defaultWeight: 0, repRange: '6-10' },
+      { exerciseId: 'ex_bulgarian_split_squat', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-12' },
+      { exerciseId: 'ex_leg_extension', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-15' },
+      { exerciseId: 'ex_leg_curl', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-15' },
+      { exerciseId: 'ex_calf_raise_machine', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-15' },
+      { exerciseId: 'ex_abs_triset', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: 'triset' },
+      { exerciseId: 'ex_dumbbell_curl', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-15' }
+    ]
   }
 ];
