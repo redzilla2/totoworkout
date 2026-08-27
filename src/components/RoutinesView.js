@@ -63,7 +63,7 @@ export function renderRoutinesView(container) {
     <!-- Exercise Database Library -->
     <div class="glass-card">
       <div class="card-header">
-        <div class="card-title">📖 Dumbbell Exercise Library (${exercises.length})</div>
+        <div class="card-title">📖 Exercise Library (${exercises.length})</div>
       </div>
 
       <div class="form-group" style="margin-bottom: 12px;">
