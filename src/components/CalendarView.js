@@ -18,7 +18,11 @@ export function renderCalendarView(container) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const prevDaysInMonth = new Date(year, month, 0).getDate();
 
-  const selectedDateWorkouts = state.history.filter(h => h.date === selectedDate);
+  // Only workouts you've actually completed/logged freeze a date's history — everything
+  // else (including the auto-generated demo/sample data) defers to the live weekly
+  // schedule, so editing the "master template" in Routines is reflected everywhere
+  // until a date is actually logged.
+  const selectedDateWorkouts = state.history.filter(h => h.date === selectedDate && h.userLogged);
   const streak = calculateStreak(state.history);
   const totalVol = calculateTotalVolume(state.history);
   const scheduledRoutine = selectedDateWorkouts.length === 0 ? getScheduledRoutine(state, selectedDate) : null;
@@ -328,8 +332,11 @@ function renderCalendarDays(year, month, firstDayIndex, daysInMonth, prevDaysInM
   const todayStr = new Date().toISOString().split('T')[0];
   const history = state.history || [];
 
+  // Same rule as the day-detail panel: only actually-logged workouts count as
+  // "logged" dots — everything else defers to the live weekly schedule.
   const historyMap = {};
   history.forEach(item => {
+    if (!item.userLogged) return;
     if (!historyMap[item.date]) historyMap[item.date] = [];
     historyMap[item.date].push(item);
   });
