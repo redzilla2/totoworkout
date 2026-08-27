@@ -113,7 +113,7 @@ export function renderActiveWorkoutView(container) {
             </select>
           </div>
 
-          <div style="display: grid; grid-template-columns: 32px 1fr 1fr 40px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding: 0 10px 6px 10px;">
+          <div style="display: grid; grid-template-columns: 32px 1fr 1fr 60px; gap: 10px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding: 0 12px 6px 12px;">
             <div>SET</div>
             <div>WEIGHT (KG)</div>
             <div>REPS</div>
@@ -121,11 +121,11 @@ export function renderActiveWorkoutView(container) {
           </div>
 
           ${ex.sets.map((set, setIndex) => `
-            <div class="set-row">
-              <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); width: 24px;">#${setIndex + 1}</div>
-              
+            <div class="set-row" style="display: grid; grid-template-columns: 32px 1fr 1fr 60px; gap: 10px;">
+              <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center;">#${setIndex + 1}</div>
+
               <input type="number" class="form-input weight-input" data-ex="${exIndex}" data-set="${setIndex}" value="${set.weight}" step="0.5" min="0" style="padding: 6px 8px; font-size: 0.85rem;">
-              
+
               <input type="number" class="form-input reps-input" data-ex="${exIndex}" data-set="${setIndex}" value="${set.reps}" style="padding: 6px 8px; font-size: 0.85rem;">
 
               <button class="set-check ${set.completed ? 'completed' : ''}" data-ex="${exIndex}" data-set="${setIndex}">
