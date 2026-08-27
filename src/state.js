@@ -33,13 +33,32 @@ function defaultAppData() {
   };
 }
 
+// Built-in routines are identified by their stable id. A saved copy of one
+// (in localStorage or Supabase) permanently freezes it as of whenever it was
+// first saved — code-side edits to DEFAULT_ROUTINES (renames, recoloring,
+// etc.) never reach a browser that already has data, since the persisted
+// routines array always wins over the fresh default. To keep built-in
+// routines' identity in sync with the current code while still preserving
+// anything the user actually customized (exercises, sets/reps added via the
+// Schedule editor), re-sync just the label fields from the current default on
+// every load; leave routines with no matching id (user-created ones) alone.
+function syncBuiltInRoutineMetadata(routines) {
+  if (!routines) return routines;
+  const defaultsById = new Map(DEFAULT_ROUTINES.map(r => [r.id, r]));
+  return routines.map(r => {
+    const def = defaultsById.get(r.id);
+    if (!def) return r;
+    return { ...r, name: def.name, icon: def.icon, color: def.color, category: def.category };
+  });
+}
+
 function loadLocalData() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       return {
-        routines: parsed.routines || DEFAULT_ROUTINES,
+        routines: syncBuiltInRoutineMetadata(parsed.routines) || DEFAULT_ROUTINES,
         schedule: parsed.schedule || defaultSchedule(),
         history: parsed.history || generateSampleHistory(),
         activeWorkout: parsed.activeWorkout || null,
@@ -65,6 +84,10 @@ class AppState {
     this.authReady = !isSupabaseConfigured;
 
     this.state = { exercises: DEFAULT_EXERCISES, ...loadLocalData() };
+    // Persist immediately in case syncBuiltInRoutineMetadata() just corrected
+    // anything above — otherwise the fix only lives in memory until some
+    // unrelated action happens to trigger the next save.
+    this.saveLocal();
 
     // Subscribe as early as possible (synchronously, right here in the constructor) —
     // supabase-js starts parsing any recovery/magic-link tokens out of the URL the
@@ -127,7 +150,7 @@ class AppState {
       const cloud = data.data;
       this.state = {
         exercises: DEFAULT_EXERCISES,
-        routines: cloud.routines || DEFAULT_ROUTINES,
+        routines: syncBuiltInRoutineMetadata(cloud.routines) || DEFAULT_ROUTINES,
         schedule: cloud.schedule || defaultSchedule(),
         history: cloud.history || generateSampleHistory(),
         activeWorkout: cloud.activeWorkout || null,
@@ -135,6 +158,10 @@ class AppState {
         selectedDate: cloud.selectedDate || formatDate(new Date())
       };
       this.saveLocal();
+      // Push any built-in-routine correction straight back up too, so the cloud
+      // copy doesn't keep re-serving a stale name/color on the next device that
+      // signs in.
+      await this.saveToCloud();
       this.notifyListeners();
     } else {
       // First sign-in on this account: push whatever's on this device up to the cloud.
