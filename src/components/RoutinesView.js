@@ -26,9 +26,26 @@ export function renderRoutinesView(container) {
               <button class="icon-btn delete-routine-btn" data-id="${r.id}" style="width: 28px; height: 28px; font-size: 12px; color: var(--accent-rose);">🗑️</button>
             </div>
 
-            <div style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 12px;">
-              ${r.exercises ? r.exercises.length : 0} exercises included
-            </div>
+            <details style="margin-bottom: 12px;">
+              <summary style="font-size: 0.82rem; color: var(--text-secondary); cursor: pointer;">
+                ${r.exercises ? r.exercises.length : 0} exercises included
+              </summary>
+              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06);">
+                ${(r.exercises || []).map(exItem => {
+                  const exMeta = exercises.find(e => e.id === exItem.exerciseId);
+                  const exName = exMeta ? exMeta.name : exItem.exerciseId;
+                  const repsLabel = exItem.repRange
+                    ? (exItem.repRange === 'triset' ? 'triset' : `${exItem.repRange} reps`)
+                    : `${exItem.defaultReps || 10} reps`;
+                  return `
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+                      <span>${exName}</span>
+                      <span style="color: var(--text-muted);">${exItem.defaultSets || 3} × ${repsLabel}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </details>
 
             <button class="btn start-routine-btn" data-id="${r.id}" style="padding: 8px 16px; font-size: 0.85rem; background: linear-gradient(135deg, ${r.color || '#6366f1'}, var(--accent-secondary));">
               ▶ Start Workout Session

@@ -247,6 +247,7 @@ class AppState {
         return {
           name: exMeta.name,
           category: exMeta.category || 'General',
+          repRange: exItem.repRange || null,
           sets: sets
         };
       })

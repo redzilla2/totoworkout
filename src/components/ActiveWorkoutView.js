@@ -99,7 +99,10 @@ export function renderActiveWorkoutView(container) {
       ${session.exercises.map((ex, exIndex) => `
         <div class="glass-card" style="margin-bottom: 0; padding: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div style="font-weight: 700; font-size: 1.05rem;">💪 ${ex.name}</div>
+            <div>
+              <div style="font-weight: 700; font-size: 1.05rem;">💪 ${ex.name}</div>
+              ${ex.repRange ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Target: ${ex.repRange === 'triset' ? 'triset' : `${ex.repRange} reps`}</div>` : ''}
+            </div>
             <button class="btn btn-secondary add-set-btn" data-ex="${exIndex}" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">+ Set</button>
           </div>
 
