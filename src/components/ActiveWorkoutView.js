@@ -137,6 +137,26 @@ export function renderActiveWorkoutView(container) {
       `).join('')}
     </div>
 
+    <!-- Add Exercise To This Session Only -->
+    <div class="glass-card">
+      <div class="card-title" style="margin-bottom: 4px;">+ Add Exercise</div>
+      <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 12px;">
+        Only added to today's session — the saved routine stays unchanged.
+      </div>
+
+      <div class="form-group" style="margin-bottom: 10px;">
+        <input type="text" class="form-input" id="session-exercise-search" placeholder="🔍 Search exercises by name or muscle group...">
+      </div>
+
+      <div class="form-group">
+        <select class="form-select" id="session-exercise-select" size="6" style="height: auto;">
+          ${renderSessionExerciseOptions(state.exercises)}
+        </select>
+      </div>
+
+      <button class="btn" id="add-session-exercise-btn" style="margin-top: 12px;">+ Add to Workout</button>
+    </div>
+
     <!-- Finish Session Floating Action -->
     <button class="btn" id="finish-workout-btn" style="background: linear-gradient(135deg, var(--accent-emerald), #059669); font-size: 1.1rem; padding: 16px;">
       🏆 Finish & Save Workout
@@ -223,6 +243,41 @@ export function renderActiveWorkoutView(container) {
     });
   });
 
+  // Search filter for the session-only exercise picker
+  container.querySelector('#session-exercise-search')?.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const filtered = (state.exercises || []).filter(ex =>
+      ex.name.toLowerCase().includes(query) || ex.category.toLowerCase().includes(query)
+    );
+    container.querySelector('#session-exercise-select').innerHTML = renderSessionExerciseOptions(filtered);
+  });
+
+  // Adds an exercise to *this session only* — 3 sets x 12 reps default, never
+  // touches the underlying routine template.
+  container.querySelector('#add-session-exercise-btn')?.addEventListener('click', () => {
+    const exerciseId = container.querySelector('#session-exercise-select').value;
+    if (!exerciseId) return;
+
+    const exMeta = (state.exercises || []).find(e => e.id === exerciseId);
+    if (!exMeta) return;
+
+    const sets = [];
+    for (let i = 0; i < 3; i++) {
+      sets.push({ setNum: i + 1, reps: 12, weight: 0, completed: false });
+    }
+
+    session.exercises.push({
+      name: exMeta.name,
+      category: exMeta.category || 'General',
+      repRange: null,
+      restSeconds: 120,
+      sets: sets
+    });
+
+    appState.updateActiveWorkout(session);
+    renderActiveWorkoutView(container);
+  });
+
   // Rest Timer Controls
   container.querySelector('#add-10s-btn')?.addEventListener('click', () => {
     if (currentRestTimer) currentRestTimer.addTime(10);
@@ -279,4 +334,11 @@ function renderRestOptions(selectedSeconds) {
     html += `<option value="${s}" ${s === selectedSeconds ? 'selected' : ''}>${label}</option>`;
   }
   return html;
+}
+
+function renderSessionExerciseOptions(list) {
+  if (!list || list.length === 0) {
+    return `<option value="" disabled selected>No exercises match your search</option>`;
+  }
+  return list.map(ex => `<option value="${ex.id}">${ex.name} (${ex.category})</option>`).join('');
 }
