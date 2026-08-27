@@ -98,12 +98,19 @@ export function renderActiveWorkoutView(container) {
     <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;">
       ${session.exercises.map((ex, exIndex) => `
         <div class="glass-card" style="margin-bottom: 0; padding: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <div>
               <div style="font-weight: 700; font-size: 1.05rem;">💪 ${ex.name}</div>
               ${ex.repRange ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Target: ${ex.repRange === 'triset' ? 'triset' : `${ex.repRange} reps`}</div>` : ''}
             </div>
             <button class="btn btn-secondary add-set-btn" data-ex="${exIndex}" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">+ Set</button>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
+            <span style="font-size: 0.75rem; color: var(--text-muted);">⏱️ Rest:</span>
+            <select class="form-select rest-time-select" data-ex="${exIndex}" style="width: auto; padding: 4px 8px; font-size: 0.78rem;">
+              ${renderRestOptions(ex.restSeconds || 60)}
+            </select>
           </div>
 
           <div style="display: grid; grid-template-columns: 32px 1fr 1fr 40px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding: 0 10px 6px 10px;">
@@ -160,12 +167,15 @@ export function renderActiveWorkoutView(container) {
 
       appState.updateActiveWorkout(session);
 
-      // Trigger Rest Timer when completing a set
-      if (targetSet.completed) {
-        startRestCountdown(60, container);
-      }
-
+      // Re-render first so the countdown (started below) is the last thing to touch
+      // the DOM — starting it before this render meant the render's static "00:60"
+      // placeholder would immediately stomp the correct just-started digits.
       renderActiveWorkoutView(container);
+
+      // Trigger Rest Timer when completing a set, using this exercise's own rest time
+      if (targetSet.completed) {
+        startRestCountdown(session.exercises[exIdx].restSeconds || 60, container);
+      }
     });
   });
 
@@ -184,6 +194,15 @@ export function renderActiveWorkoutView(container) {
       const exIdx = parseInt(input.getAttribute('data-ex'), 10);
       const setIdx = parseInt(input.getAttribute('data-set'), 10);
       session.exercises[exIdx].sets[setIdx].reps = parseInt(input.value || 0, 10);
+      appState.updateActiveWorkout(session);
+    });
+  });
+
+  // Rest time selector per exercise
+  container.querySelectorAll('.rest-time-select').forEach(select => {
+    select.addEventListener('change', () => {
+      const exIdx = parseInt(select.getAttribute('data-ex'), 10);
+      session.exercises[exIdx].restSeconds = parseInt(select.value, 10);
       appState.updateActiveWorkout(session);
     });
   });
@@ -221,12 +240,20 @@ export function renderActiveWorkoutView(container) {
 function startRestCountdown(seconds, container) {
   if (currentRestTimer) currentRestTimer.stop();
 
-  const widget = container.querySelector('#rest-timer-widget');
-  const digits = container.querySelector('#rest-timer-digits');
-  if (widget) widget.style.display = 'block';
+  // Re-query the widget/digits elements fresh on every tick rather than caching
+  // them once — a set-check or add-set click re-renders this whole view (rebuilding
+  // container.innerHTML) while the countdown keeps running, which would otherwise
+  // orphan a cached reference and freeze the visible digits on the stale placeholder.
+  const showWidget = () => {
+    const widget = container.querySelector('#rest-timer-widget');
+    if (widget) widget.style.display = 'block';
+  };
+  showWidget();
 
   currentRestTimer = new RestTimer(
     (secsLeft) => {
+      showWidget();
+      const digits = container.querySelector('#rest-timer-digits');
       if (digits) {
         const mins = Math.floor(secsLeft / 60);
         const s = secsLeft % 60;
@@ -234,9 +261,22 @@ function startRestCountdown(seconds, container) {
       }
     },
     () => {
+      const widget = container.querySelector('#rest-timer-widget');
       if (widget) widget.style.display = 'none';
     }
   );
 
   currentRestTimer.start(seconds);
+}
+
+// Builds <option>s from 0:00 to 5:00 in 5-second steps, e.g. "1:35".
+function renderRestOptions(selectedSeconds) {
+  let html = '';
+  for (let s = 0; s <= 300; s += 5) {
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    const label = `${mins}:${String(secs).padStart(2, '0')}`;
+    html += `<option value="${s}" ${s === selectedSeconds ? 'selected' : ''}>${label}</option>`;
+  }
+  return html;
 }
