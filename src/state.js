@@ -48,43 +48,47 @@ class AppState {
     this.authReady = !isSupabaseConfigured;
 
     this.state = { exercises: DEFAULT_EXERCISES, ...loadLocalData() };
+
+    // Subscribe as early as possible (synchronously, right here in the constructor) —
+    // supabase-js starts parsing any recovery/magic-link tokens out of the URL the
+    // moment createClient() runs, and fires PASSWORD_RECOVERY to whatever's listening
+    // at that moment. Waiting until init() (after an awaited getSession() call) to
+    // subscribe is too late: the event has often already fired to no one, and
+    // getSession() just hands back the resulting session as if it were a normal login.
+    if (isSupabaseConfigured) {
+      this._authReadyPromise = new Promise((resolve) => {
+        this._resolveAuthReady = resolve;
+      });
+
+      supabase.auth.onAuthStateChange(async (event, newSession) => {
+        const hadSession = !!this.session;
+        this.session = newSession;
+        this.authReady = true;
+
+        if (event === 'PASSWORD_RECOVERY') {
+          // Arrived here via a "reset password" email link. Gate the app on the
+          // update-password screen instead of dropping straight into the account.
+          this.passwordRecovery = true;
+          this.notifyListeners();
+        } else if (newSession && !hadSession) {
+          await this.loadCloudState();
+        } else if (!newSession) {
+          // Signed out (or never signed in): fall back to whatever's cached locally.
+          this.state = { exercises: DEFAULT_EXERCISES, ...loadLocalData() };
+          this.notifyListeners();
+        }
+
+        this._resolveAuthReady?.();
+        this._resolveAuthReady = null;
+      });
+    }
   }
 
-  // Resolves the initial Supabase session and starts listening for auth changes.
+  // Waits for the initial Supabase session/recovery check to resolve.
   // No-ops (synchronously) when Supabase env vars aren't set.
   async init() {
     if (!isSupabaseConfigured) return;
-
-    const { data: { session } } = await supabase.auth.getSession();
-    this.session = session;
-    this.authReady = true;
-
-    if (session) {
-      await this.loadCloudState();
-    } else {
-      this.notifyListeners();
-    }
-
-    supabase.auth.onAuthStateChange(async (event, newSession) => {
-      const hadSession = !!this.session;
-      this.session = newSession;
-
-      if (event === 'PASSWORD_RECOVERY') {
-        // Arrived here via a "reset password" email link. Gate the app on the
-        // update-password screen instead of dropping straight into the account.
-        this.passwordRecovery = true;
-        this.notifyListeners();
-        return;
-      }
-
-      if (newSession && !hadSession) {
-        await this.loadCloudState();
-      } else if (!newSession && hadSession) {
-        // Signed out: fall back to whatever's cached on this device.
-        this.state = { exercises: DEFAULT_EXERCISES, ...loadLocalData() };
-        this.notifyListeners();
-      }
-    });
+    await this._authReadyPromise;
   }
 
   async loadCloudState() {
