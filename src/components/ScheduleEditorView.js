@@ -91,9 +91,13 @@ export function renderScheduleEditorView(container) {
       <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px;">
         <div style="font-size: 0.82rem; font-weight: 700; color: #a5b4fc; margin-bottom: 10px;">+ ADD EXERCISE</div>
 
+        <div class="form-group" style="margin-bottom: 10px;">
+          <input type="text" class="form-input" id="new-exercise-search" placeholder="🔍 Search exercises by name or muscle group...">
+        </div>
+
         <div class="form-group">
-          <select class="form-select" id="new-exercise-select">
-            ${exercises.map(ex => `<option value="${ex.id}">${ex.name} (${ex.category})</option>`).join('')}
+          <select class="form-select" id="new-exercise-select" size="6" style="height: auto;">
+            ${renderExerciseOptions(exercises)}
           </select>
         </div>
 
@@ -151,6 +155,14 @@ export function renderScheduleEditorView(container) {
     });
   });
 
+  container.querySelector('#new-exercise-search')?.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const filtered = exercises.filter(ex =>
+      ex.name.toLowerCase().includes(query) || ex.category.toLowerCase().includes(query)
+    );
+    container.querySelector('#new-exercise-select').innerHTML = renderExerciseOptions(filtered);
+  });
+
   container.querySelector('#add-exercise-btn')?.addEventListener('click', () => {
     const exerciseId = container.querySelector('#new-exercise-select').value;
     const sets = parseInt(container.querySelector('#new-exercise-sets').value || '3', 10);
@@ -169,4 +181,11 @@ export function renderScheduleEditorView(container) {
       defaultWeight: 0
     });
   });
+}
+
+function renderExerciseOptions(list) {
+  if (list.length === 0) {
+    return `<option value="" disabled selected>No exercises match your search</option>`;
+  }
+  return list.map(ex => `<option value="${ex.id}">${ex.name} (${ex.category})</option>`).join('');
 }
