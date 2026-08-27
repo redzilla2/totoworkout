@@ -3,7 +3,7 @@ export function generateSampleHistory() {
 
   const routinesMap = {
     1: { // Monday
-      name: 'Monday - Upper Body A',
+      name: 'Dumbbell 5 Day - Upper Body A',
       category: 'Push / Upper',
       color: '#3b82f6',
       icon: '🔥',
@@ -17,7 +17,7 @@ export function generateSampleHistory() {
       ]
     },
     2: { // Tuesday
-      name: 'Tuesday - Lower Body A & Core',
+      name: 'Dumbbell 5 Day - Lower Body A & Core',
       category: 'Legs / Core',
       color: '#10b981',
       icon: '🦵',
@@ -31,7 +31,7 @@ export function generateSampleHistory() {
       ]
     },
     3: { // Wednesday
-      name: 'Wednesday - Arms & Forearms',
+      name: 'Dumbbell 5 Day - Arms & Forearms',
       category: 'Arms',
       color: '#8b5cf6',
       icon: '⚡',
@@ -44,7 +44,7 @@ export function generateSampleHistory() {
       ]
     },
     4: { // Thursday
-      name: 'Thursday - Upper Body B',
+      name: 'Dumbbell 5 Day - Upper Body B',
       category: 'Push / Upper',
       color: '#f59e0b',
       icon: '💥',
@@ -59,7 +59,7 @@ export function generateSampleHistory() {
       ]
     },
     5: { // Friday
-      name: 'Friday - Lower Body B & Glutes',
+      name: 'Dumbbell 5 Day - Lower Body B & Glutes',
       category: 'Legs',
       color: '#ec4899',
       icon: '🎯',

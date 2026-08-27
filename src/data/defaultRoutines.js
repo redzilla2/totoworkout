@@ -1,7 +1,7 @@
 export const DEFAULT_ROUTINES = [
   {
     id: 'routine_mon_upper_a',
-    name: 'Monday - Upper Body A',
+    name: 'Dumbbell 5 Day - Upper Body A',
     category: 'Push / Upper',
     icon: '🔥',
     color: '#3b82f6',
@@ -16,7 +16,7 @@ export const DEFAULT_ROUTINES = [
   },
   {
     id: 'routine_tue_lower_a',
-    name: 'Tuesday - Lower Body A & Core',
+    name: 'Dumbbell 5 Day - Lower Body A & Core',
     category: 'Legs / Core',
     icon: '🦵',
     color: '#10b981',
@@ -31,7 +31,7 @@ export const DEFAULT_ROUTINES = [
   },
   {
     id: 'routine_wed_arms',
-    name: 'Wednesday - Arms & Forearms',
+    name: 'Dumbbell 5 Day - Arms & Forearms',
     category: 'Arms',
     icon: '⚡',
     color: '#8b5cf6',
@@ -45,7 +45,7 @@ export const DEFAULT_ROUTINES = [
   },
   {
     id: 'routine_thu_upper_b',
-    name: 'Thursday - Upper Body B',
+    name: 'Dumbbell 5 Day - Upper Body B',
     category: 'Push / Upper',
     icon: '💥',
     color: '#f59e0b',
@@ -61,7 +61,7 @@ export const DEFAULT_ROUTINES = [
   },
   {
     id: 'routine_fri_lower_b',
-    name: 'Friday - Lower Body B & Glutes',
+    name: 'Dumbbell 5 Day - Lower Body B & Glutes',
     category: 'Legs',
     icon: '🎯',
     color: '#ec4899',
@@ -77,7 +77,7 @@ export const DEFAULT_ROUTINES = [
   // Upper/Lower Split - 6 Week Program (4-day split, run for 6 weeks with progressive overload)
   {
     id: 'routine_ul_upper_1',
-    name: 'Upper 1 (Monday)',
+    name: 'UpperLower 4 Day - Upper 1',
     category: 'Upper Body',
     icon: '💪',
     color: '#0ea5e9',
@@ -93,7 +93,7 @@ export const DEFAULT_ROUTINES = [
   },
   {
     id: 'routine_ul_lower_1',
-    name: 'Lower 1 (Tuesday)',
+    name: 'UpperLower 4 Day - Lower 1',
     category: 'Lower Body',
     icon: '🦵',
     color: '#22c55e',
@@ -109,7 +109,7 @@ export const DEFAULT_ROUTINES = [
   },
   {
     id: 'routine_ul_upper_2',
-    name: 'Upper 2 (Thursday)',
+    name: 'UpperLower 4 Day - Upper 2',
     category: 'Upper Body',
     icon: '🔥',
     color: '#a855f7',
@@ -125,7 +125,7 @@ export const DEFAULT_ROUTINES = [
   },
   {
     id: 'routine_ul_lower_2',
-    name: 'Lower 2 (Friday)',
+    name: 'UpperLower 4 Day - Lower 2',
     category: 'Lower Body',
     icon: '⚡',
     color: '#f97316',
