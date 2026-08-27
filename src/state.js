@@ -408,6 +408,14 @@ class AppState {
     this.notify();
   }
 
+  // Patches a single exercise entry within a routine (e.g. { defaultSets, defaultReps }).
+  updateRoutineExercise(routineId, exerciseIndex, patch) {
+    const routine = this.state.routines.find(r => r.id === routineId);
+    if (!routine || !routine.exercises[exerciseIndex]) return;
+    Object.assign(routine.exercises[exerciseIndex], patch);
+    this.notify();
+  }
+
   resetDemoData() {
     this.state.history = generateSampleHistory();
     this.notify();

@@ -53,16 +53,29 @@ export function renderScheduleEditorView(container) {
           ${assignedRoutine.exercises.length > 0 ? assignedRoutine.exercises.map((exItem, idx) => {
             const exMeta = exercises.find(e => e.id === exItem.exerciseId);
             const exName = exMeta ? exMeta.name : exItem.exerciseId;
-            const repsLabel = exItem.repRange
-              ? (exItem.repRange === 'triset' ? 'triset' : `${exItem.repRange} reps`)
-              : `${exItem.defaultReps || 10} reps`;
+            const targetHint = exItem.repRange
+              ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Target: ${exItem.repRange === 'triset' ? 'triset' : `${exItem.repRange} reps`}</div>`
+              : '';
             return `
-              <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
-                <div>
-                  <div style="font-weight: 700; font-size: 0.9rem;">${exName}</div>
-                  <div style="font-size: 0.75rem; color: var(--text-muted);">${exItem.defaultSets || 3} × ${repsLabel}</div>
+              <div style="background: rgba(15, 23, 42, 0.6); padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.9rem;">${exName}</div>
+                    ${targetHint}
+                  </div>
+                  <button class="icon-btn remove-exercise-btn" data-idx="${idx}" title="Remove" style="width: 28px; height: 28px; font-size: 12px; color: var(--accent-rose);">🗑️</button>
                 </div>
-                <button class="icon-btn remove-exercise-btn" data-idx="${idx}" title="Remove" style="width: 28px; height: 28px; font-size: 12px; color: var(--accent-rose);">🗑️</button>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem;">
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" class="form-input exercise-sets-input" data-idx="${idx}" value="${exItem.defaultSets || 3}" min="1" style="width: 54px; padding: 4px 6px; font-size: 0.82rem; text-align: center;">
+                    <span style="color: var(--text-muted);">sets</span>
+                  </div>
+                  <span style="color: var(--text-muted);">×</span>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" class="form-input exercise-reps-input" data-idx="${idx}" value="${exItem.defaultReps || 10}" min="1" style="width: 54px; padding: 4px 6px; font-size: 0.82rem; text-align: center;">
+                    <span style="color: var(--text-muted);">reps</span>
+                  </div>
+                </div>
               </div>
             `;
           }).join('') : `<div style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 12px;">No exercises yet — add one below.</div>`}
@@ -119,6 +132,22 @@ export function renderScheduleEditorView(container) {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.getAttribute('data-idx'), 10);
       if (assignedRoutine) appState.removeExerciseFromRoutine(assignedRoutine.id, idx);
+    });
+  });
+
+  container.querySelectorAll('.exercise-sets-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const idx = parseInt(input.getAttribute('data-idx'), 10);
+      const sets = parseInt(input.value || '1', 10);
+      if (assignedRoutine) appState.updateRoutineExercise(assignedRoutine.id, idx, { defaultSets: sets || 1 });
+    });
+  });
+
+  container.querySelectorAll('.exercise-reps-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const idx = parseInt(input.getAttribute('data-idx'), 10);
+      const reps = parseInt(input.value || '1', 10);
+      if (assignedRoutine) appState.updateRoutineExercise(assignedRoutine.id, idx, { defaultReps: reps || 1 });
     });
   });
 
