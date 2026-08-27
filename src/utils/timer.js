@@ -36,6 +36,49 @@ export function playSuccessChime() {
 }
 
 /**
+ * Single two-tone "air horn" style blast (no external asset files required)
+ */
+function playHornBlast() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc1.type = 'sawtooth';
+    osc2.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(233, ctx.currentTime); // low honk tone
+    osc2.frequency.setValueAtTime(294, ctx.currentTime); // classic two-tone air-horn interval
+
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + 0.04);
+    gain.gain.setValueAtTime(0.35, ctx.currentTime + 0.35);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc1.start();
+    osc2.start();
+    osc1.stop(ctx.currentTime + 0.5);
+    osc2.stop(ctx.currentTime + 0.5);
+  } catch (err) {
+    console.warn('Web Audio error:', err);
+  }
+}
+
+/**
+ * "Honk-honk" rest-over alert — plays two horn blasts back to back.
+ */
+export function playHornSound() {
+  playHornBlast();
+  setTimeout(() => playHornBlast(), 550);
+}
+
+/**
  * Rest Timer Controller class
  */
 export class RestTimer {
@@ -57,7 +100,7 @@ export class RestTimer {
 
       if (this.secondsLeft <= 0) {
         this.stop();
-        playSuccessChime();
+        playHornSound();
         if (this.onComplete) this.onComplete();
       }
     }, 1000);

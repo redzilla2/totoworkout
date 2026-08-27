@@ -295,6 +295,9 @@ class AppState {
           name: exMeta.name,
           category: exMeta.category || 'General',
           repRange: exItem.repRange || null,
+          // Seeds from the exercise library's per-exercise default rest time (e.g.
+          // heavy compounds rest longer than isolation work), editable per-set below.
+          restSeconds: exMeta.defaultRest || 60,
           sets: sets
         };
       })
