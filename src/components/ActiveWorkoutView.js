@@ -3,11 +3,17 @@ import { RestTimer } from '../utils/timer.js';
 
 let currentRestTimer = null;
 
+// Elapsed-time clock: module-level like currentRestTimer, so it survives the
+// full re-renders that fire on every set-check / add-set / etc.
+let elapsedTimerId = null;
+let elapsedTimerSessionId = null;
+
 export function renderActiveWorkoutView(container) {
   const state = appState.getState();
   const session = state.activeWorkout;
 
   if (!session) {
+    stopElapsedTimer();
     container.innerHTML = `
       <div class="glass-card" style="text-align: center; padding: 40px 20px;">
         <div style="font-size: 48px; margin-bottom: 12px;">🏋️</div>
@@ -34,10 +40,6 @@ export function renderActiveWorkoutView(container) {
     });
     return;
   }
-
-  // Calculate elapsed time & total volume completed
-  const elapsedSecs = Math.max(0, Math.floor((Date.now() - session.startTime) / 1000));
-  const elapsedMins = Math.floor(elapsedSecs / 60);
 
   let activeVolume = 0;
   let totalSets = 0;
@@ -68,7 +70,7 @@ export function renderActiveWorkoutView(container) {
 
       <div style="display: flex; justify-content: space-around; background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: var(--radius-md); text-align: center;">
         <div>
-          <div style="font-size: 1.1rem; font-weight: 800; color: #a5b4fc;">⏱️ ${elapsedMins}m</div>
+          <div style="font-size: 1.1rem; font-weight: 800; color: #a5b4fc;" id="elapsed-timer-digits">⏱️ 00:00</div>
           <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">ELAPSED</div>
         </div>
         <div style="width: 1px; background: var(--border-glass);"></div>
@@ -103,7 +105,10 @@ export function renderActiveWorkoutView(container) {
               <div style="font-weight: 700; font-size: 1.05rem;">💪 ${ex.name}</div>
               ${ex.repRange ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Target: ${ex.repRange === 'triset' ? 'triset' : `${ex.repRange} reps`}</div>` : ''}
             </div>
-            <button class="btn btn-secondary add-set-btn" data-ex="${exIndex}" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">+ Set</button>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button class="btn btn-secondary add-set-btn" data-ex="${exIndex}" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">+ Set</button>
+              <button class="icon-btn delete-exercise-btn" data-ex="${exIndex}" title="Remove exercise from this workout" style="width: 30px; height: 30px; font-size: 12px; color: var(--accent-rose);">🗑️</button>
+            </div>
           </div>
 
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
@@ -113,15 +118,16 @@ export function renderActiveWorkoutView(container) {
             </select>
           </div>
 
-          <div style="display: grid; grid-template-columns: 32px 1fr 1fr 60px; gap: 10px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding: 0 12px 6px 12px;">
+          <div style="display: grid; grid-template-columns: 28px 1fr 1fr 56px 28px; gap: 8px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding: 0 12px 6px 12px;">
             <div>SET</div>
             <div>WEIGHT (KG)</div>
             <div>REPS</div>
             <div style="text-align: center;">DONE</div>
+            <div></div>
           </div>
 
           ${ex.sets.map((set, setIndex) => `
-            <div class="set-row" style="display: grid; grid-template-columns: 32px 1fr 1fr 60px; gap: 10px;">
+            <div class="set-row" style="display: grid; grid-template-columns: 28px 1fr 1fr 56px 28px; gap: 8px;">
               <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center;">#${setIndex + 1}</div>
 
               <input type="number" class="form-input weight-input" data-ex="${exIndex}" data-set="${setIndex}" value="${set.weight}" step="0.5" min="0" style="padding: 6px 8px; font-size: 0.85rem;">
@@ -131,6 +137,8 @@ export function renderActiveWorkoutView(container) {
               <button class="set-check ${set.completed ? 'completed' : ''}" data-ex="${exIndex}" data-set="${setIndex}">
                 ${set.completed ? '✓' : ''}
               </button>
+
+              <button class="icon-btn delete-set-btn" data-ex="${exIndex}" data-set="${setIndex}" title="Remove set" style="width: 28px; height: 28px; font-size: 11px; padding: 0; color: var(--accent-rose);">🗑️</button>
             </div>
           `).join('')}
         </div>
@@ -163,16 +171,20 @@ export function renderActiveWorkoutView(container) {
     </button>
   `;
 
+  startElapsedTimer(session, container);
+
   // Attach Event Handlers
   container.querySelector('#cancel-active-btn')?.addEventListener('click', () => {
     if (confirm('Discard current workout session?')) {
       if (currentRestTimer) currentRestTimer.stop();
+      stopElapsedTimer();
       appState.cancelActiveWorkout();
     }
   });
 
   container.querySelector('#finish-workout-btn')?.addEventListener('click', () => {
     if (currentRestTimer) currentRestTimer.stop();
+    stopElapsedTimer();
     appState.finishActiveWorkout();
   });
 
@@ -243,6 +255,30 @@ export function renderActiveWorkoutView(container) {
     });
   });
 
+  // Remove a single set row from an exercise
+  container.querySelectorAll('.delete-set-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const exIdx = parseInt(btn.getAttribute('data-ex'), 10);
+      const setIdx = parseInt(btn.getAttribute('data-set'), 10);
+      session.exercises[exIdx].sets.splice(setIdx, 1);
+      appState.updateActiveWorkout(session);
+      renderActiveWorkoutView(container);
+    });
+  });
+
+  // Remove an entire exercise from this workout session
+  container.querySelectorAll('.delete-exercise-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const exIdx = parseInt(btn.getAttribute('data-ex'), 10);
+      const exName = session.exercises[exIdx]?.name || 'this exercise';
+      if (confirm(`Remove "${exName}" from this workout?`)) {
+        session.exercises.splice(exIdx, 1);
+        appState.updateActiveWorkout(session);
+        renderActiveWorkoutView(container);
+      }
+    });
+  });
+
   // Search filter for the session-only exercise picker
   container.querySelector('#session-exercise-search')?.addEventListener('input', (e) => {
     const query = e.target.value.toLowerCase().trim();
@@ -290,6 +326,39 @@ export function renderActiveWorkoutView(container) {
       if (widget) widget.style.display = 'none';
     }
   });
+}
+
+// Ticking mm:ss clock counting up from session.startTime — recomputed from the
+// absolute timestamp each tick so it can't drift. Called on every render (not
+// just the first), so it always immediately resyncs the freshly-rendered
+// digits element (otherwise it'd sit on the template's static "00:00"
+// placeholder until the next scheduled tick, up to a second later — same
+// class of bug the rest-timer digits had). Only keeps one underlying
+// setInterval alive per session, re-querying its DOM target fresh each tick
+// so it survives this view's frequent full re-renders.
+function startElapsedTimer(session, container) {
+  const updateDigits = () => {
+    const el = container.querySelector('#elapsed-timer-digits');
+    if (!el) return;
+    const elapsedSecs = Math.max(0, Math.floor((Date.now() - session.startTime) / 1000));
+    const mins = Math.floor(elapsedSecs / 60);
+    const secs = elapsedSecs % 60;
+    el.textContent = `⏱️ ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+  updateDigits();
+
+  if (elapsedTimerId && elapsedTimerSessionId === session.id) return;
+  stopElapsedTimer();
+  elapsedTimerSessionId = session.id;
+  elapsedTimerId = setInterval(updateDigits, 1000);
+}
+
+function stopElapsedTimer() {
+  if (elapsedTimerId) {
+    clearInterval(elapsedTimerId);
+    elapsedTimerId = null;
+  }
+  elapsedTimerSessionId = null;
 }
 
 function startRestCountdown(seconds, container) {
