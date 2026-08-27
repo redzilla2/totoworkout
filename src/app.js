@@ -5,6 +5,7 @@ import { renderRoutinesView } from './components/RoutinesView.js';
 import { renderAnalyticsView } from './components/AnalyticsView.js';
 import { renderAuthView } from './components/AuthView.js';
 import { renderUpdatePasswordView } from './components/UpdatePasswordView.js';
+import { renderScheduleEditorView } from './components/ScheduleEditorView.js';
 
 export async function initApp() {
   const appRoot = document.getElementById('app');
@@ -65,7 +66,7 @@ export async function initApp() {
           <span>${hasActiveWorkout ? 'Live Session' : 'Active'}</span>
         </button>
 
-        <button class="nav-item ${currentView === 'routines' ? 'active' : ''}" data-view="routines">
+        <button class="nav-item ${(currentView === 'routines' || currentView === 'schedule-editor') ? 'active' : ''}" data-view="routines">
           <span class="nav-icon">📋</span>
           <span>Routines</span>
         </button>
@@ -83,6 +84,7 @@ export async function initApp() {
       if (currentView === 'calendar') renderCalendarView(contentEl);
       else if (currentView === 'active') renderActiveWorkoutView(contentEl);
       else if (currentView === 'routines') renderRoutinesView(contentEl);
+      else if (currentView === 'schedule-editor') renderScheduleEditorView(contentEl);
       else if (currentView === 'analytics') renderAnalyticsView(contentEl);
     }
 

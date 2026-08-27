@@ -6,6 +6,11 @@ export function renderRoutinesView(container) {
   const exercises = state.exercises || [];
 
   container.innerHTML = `
+    <!-- Weekly Schedule Editor Entry Point -->
+    <button class="btn" id="open-schedule-editor-btn" style="margin-bottom: 20px; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-primary));">
+      🗓️ Edit Weekly Schedule
+    </button>
+
     <!-- Workout Routines Section -->
     <div class="glass-card">
       <div class="card-header">
@@ -72,6 +77,10 @@ export function renderRoutinesView(container) {
   `;
 
   // Attach Event Handlers
+  container.querySelector('#open-schedule-editor-btn')?.addEventListener('click', () => {
+    appState.setView('schedule-editor');
+  });
+
   container.querySelectorAll('.start-routine-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const routineId = btn.getAttribute('data-id');

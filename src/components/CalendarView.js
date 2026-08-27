@@ -1,5 +1,5 @@
 import { appState } from '../state.js';
-import { formatDisplayDate, calculateStreak, calculateTotalVolume } from '../utils/helpers.js';
+import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine } from '../utils/helpers.js';
 
 export function renderCalendarView(container) {
   const state = appState.getState();
@@ -21,6 +21,7 @@ export function renderCalendarView(container) {
   const selectedDateWorkouts = state.history.filter(h => h.date === selectedDate);
   const streak = calculateStreak(state.history);
   const totalVol = calculateTotalVolume(state.history);
+  const scheduledRoutine = selectedDateWorkouts.length === 0 ? getScheduledRoutine(state, selectedDate) : null;
 
   container.innerHTML = `
     <!-- Stats Header Bar -->
@@ -59,7 +60,7 @@ export function renderCalendarView(container) {
       </div>
 
       <div class="calendar-grid" id="calendar-days-grid">
-        ${renderCalendarDays(year, month, firstDayIndex, daysInMonth, prevDaysInMonth, state.history, selectedDate)}
+        ${renderCalendarDays(year, month, firstDayIndex, daysInMonth, prevDaysInMonth, state, selectedDate)}
       </div>
     </div>
 
@@ -146,6 +147,36 @@ export function renderCalendarView(container) {
               </button>
             </div>
           `).join('')}
+        </div>
+      ` : scheduledRoutine ? `
+        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-glass); border-left: 4px solid ${scheduledRoutine.color || '#6366f1'}; border-radius: var(--radius-md); padding: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div>
+              <span style="font-weight: 800; font-size: 1.1rem;">${scheduledRoutine.icon || '🏋️'} ${scheduledRoutine.name}</span>
+              <span class="badge" style="background: ${scheduledRoutine.color || '#6366f1'}22; color: ${scheduledRoutine.color || '#6366f1'}; margin-left: 8px;">${scheduledRoutine.category}</span>
+            </div>
+          </div>
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">📋 Scheduled — not logged yet</div>
+
+          <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;">
+            ${(scheduledRoutine.exercises || []).map(exItem => {
+              const exMeta = state.exercises.find(e => e.id === exItem.exerciseId);
+              const exName = exMeta ? exMeta.name : exItem.exerciseId;
+              const repsLabel = exItem.repRange
+                ? (exItem.repRange === 'triset' ? 'triset' : `${exItem.repRange} reps`)
+                : `${exItem.defaultReps || 10} reps`;
+              return `
+                <div style="display: flex; justify-content: space-between; font-size: 0.82rem;">
+                  <span>${exName}</span>
+                  <span style="color: var(--text-muted);">${exItem.defaultSets || 3} × ${repsLabel}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <button class="btn start-scheduled-btn" id="start-scheduled-btn" style="padding: 10px; font-size: 0.88rem; background: linear-gradient(135deg, ${scheduledRoutine.color || '#6366f1'}, var(--accent-secondary));">
+            ▶ Start This Workout
+          </button>
         </div>
       ` : `
         <div style="text-align: center; padding: 24px 10px; color: var(--text-muted);">
@@ -285,11 +316,17 @@ export function renderCalendarView(container) {
   container.querySelector('#log-custom-workout-btn')?.addEventListener('click', () => {
     openQuickLogModal(selectedDate);
   });
+
+  // Start today's/selected date's scheduled routine straight into an active session
+  container.querySelector('#start-scheduled-btn')?.addEventListener('click', () => {
+    if (scheduledRoutine) appState.startWorkoutFromRoutine(scheduledRoutine);
+  });
 }
 
-function renderCalendarDays(year, month, firstDayIndex, daysInMonth, prevDaysInMonth, history, selectedDate) {
+function renderCalendarDays(year, month, firstDayIndex, daysInMonth, prevDaysInMonth, state, selectedDate) {
   let html = '';
   const todayStr = new Date().toISOString().split('T')[0];
+  const history = state.history || [];
 
   const historyMap = {};
   history.forEach(item => {
@@ -297,16 +334,31 @@ function renderCalendarDays(year, month, firstDayIndex, daysInMonth, prevDaysInM
     historyMap[item.date].push(item);
   });
 
+  // Renders either the logged workout dots for a date, or — if nothing's been
+  // logged yet — a hollow dot in the scheduled routine's color, so the weekly
+  // schedule is visible on the calendar before you've actually logged anything.
+  function renderDots(dateStr) {
+    const logs = historyMap[dateStr] || [];
+    if (logs.length > 0) {
+      return logs.map(l => `<div class="workout-dot" style="background: ${l.color || '#6366f1'}; color: ${l.color || '#6366f1'};"></div>`).join('');
+    }
+    const scheduled = getScheduledRoutine(state, dateStr);
+    if (scheduled) {
+      const c = scheduled.color || '#6366f1';
+      return `<div class="workout-dot" style="background: transparent; border: 1.5px solid ${c}; color: ${c};"></div>`;
+    }
+    return '';
+  }
+
   // Prev month padding
   for (let i = firstDayIndex - 1; i >= 0; i--) {
     const dayNum = prevDaysInMonth - i;
     const prevMonthDate = new Date(year, month - 1, dayNum);
     const dateStr = formatDateString(prevMonthDate);
-    const logs = historyMap[dateStr] || [];
     html += `<div class="calendar-day other-month" data-date="${dateStr}">
       <span class="day-number">${dayNum}</span>
       <div class="day-dots">
-        ${logs.map(l => `<div class="workout-dot" style="background: ${l.color || '#6366f1'}; color: ${l.color || '#6366f1'};"></div>`).join('')}
+        ${renderDots(dateStr)}
       </div>
     </div>`;
   }
@@ -317,13 +369,12 @@ function renderCalendarDays(year, month, firstDayIndex, daysInMonth, prevDaysInM
     const dateStr = formatDateString(curDate);
     const isToday = dateStr === todayStr;
     const isSelected = dateStr === selectedDate;
-    const logs = historyMap[dateStr] || [];
 
     html += `
       <div class="calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" data-date="${dateStr}">
         <span class="day-number">${d}</span>
         <div class="day-dots">
-          ${logs.map(l => `<div class="workout-dot" style="background: ${l.color || '#6366f1'}; color: ${l.color || '#6366f1'};"></div>`).join('')}
+          ${renderDots(dateStr)}
         </div>
       </div>
     `;
@@ -335,11 +386,10 @@ function renderCalendarDays(year, month, firstDayIndex, daysInMonth, prevDaysInM
   for (let j = 1; j <= nextMonthPadding; j++) {
     const nextMonthDate = new Date(year, month + 1, j);
     const dateStr = formatDateString(nextMonthDate);
-    const logs = historyMap[dateStr] || [];
     html += `<div class="calendar-day other-month" data-date="${dateStr}">
       <span class="day-number">${j}</span>
       <div class="day-dots">
-        ${logs.map(l => `<div class="workout-dot" style="background: ${l.color || '#6366f1'}; color: ${l.color || '#6366f1'};"></div>`).join('')}
+        ${renderDots(dateStr)}
       </div>
     </div>`;
   }
