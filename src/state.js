@@ -345,6 +345,10 @@ class AppState {
     this.addWorkoutLog(completedLog);
     this.state.activeWorkout = null;
     this.state.currentView = 'calendar';
+    // Jump the calendar to the date this session was actually logged under, so the
+    // just-finished workout is immediately visible rather than landing invisibly on
+    // whatever date happened to be selected before the workout started.
+    this.state.selectedDate = completedLog.date;
     this.notify();
   }
 
