@@ -41,6 +41,7 @@ class AppState {
     this.listeners = [];
     this.session = null;
     this.cloudSaveTimer = null;
+    this.passwordRecovery = false;
 
     // When cloud sync isn't configured, skip the auth gate entirely.
     this.localOnly = !isSupabaseConfigured;
@@ -64,9 +65,17 @@ class AppState {
       this.notifyListeners();
     }
 
-    supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    supabase.auth.onAuthStateChange(async (event, newSession) => {
       const hadSession = !!this.session;
       this.session = newSession;
+
+      if (event === 'PASSWORD_RECOVERY') {
+        // Arrived here via a "reset password" email link. Gate the app on the
+        // update-password screen instead of dropping straight into the account.
+        this.passwordRecovery = true;
+        this.notifyListeners();
+        return;
+      }
 
       if (newSession && !hadSession) {
         await this.loadCloudState();
@@ -114,6 +123,20 @@ class AppState {
 
   needsAuth() {
     return isSupabaseConfigured && this.authReady && !this.session && !this.localOnly;
+  }
+
+  needsPasswordReset() {
+    return this.passwordRecovery;
+  }
+
+  // Called once the user has successfully set a new password from the recovery screen.
+  async completePasswordRecovery() {
+    this.passwordRecovery = false;
+    if (this.session) {
+      await this.loadCloudState();
+    } else {
+      this.notifyListeners();
+    }
   }
 
   isAuthLoading() {

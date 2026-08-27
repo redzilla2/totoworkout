@@ -1,16 +1,24 @@
 import { supabase, isSupabaseConfigured } from '../supabaseClient.js';
 
 export function renderAuthView(container, { onLocalOnly } = {}) {
-  let mode = 'signin'; // 'signin' | 'signup'
+  let mode = 'signin'; // 'signin' | 'signup' | 'reset'
+
+  const titles = {
+    signin: 'Sign in to sync your workouts',
+    signup: 'Create an account to get started',
+    reset: 'Enter your email to get a reset link'
+  };
 
   function render() {
+    const isReset = mode === 'reset';
+
     container.innerHTML = `
       <div class="glass-card" style="max-width: 360px; margin: 60px auto; padding: 28px;">
         <div style="text-align: center; margin-bottom: 20px;">
           <div style="font-size: 40px;">💪</div>
           <div style="font-size: 1.3rem; font-weight: 800; margin-top: 4px;">TotoWorkouts</div>
           <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
-            ${mode === 'signin' ? 'Sign in to sync your workouts' : 'Create an account to get started'}
+            ${titles[mode]}
           </div>
         </div>
 
@@ -25,24 +33,40 @@ export function renderAuthView(container, { onLocalOnly } = {}) {
               <label class="form-label">Email</label>
               <input type="email" class="form-input" id="auth-email" required autocomplete="email">
             </div>
-            <div class="form-group">
-              <label class="form-label">Password</label>
-              <input type="password" class="form-input" id="auth-password" required minlength="6" autocomplete="${mode === 'signin' ? 'current-password' : 'new-password'}">
-            </div>
+            ${!isReset ? `
+              <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-input" id="auth-password" required minlength="6" autocomplete="${mode === 'signin' ? 'current-password' : 'new-password'}">
+              </div>
+            ` : ''}
 
             <div id="auth-error" style="color: var(--accent-rose); font-size: 0.8rem; margin-bottom: 10px; display: none;"></div>
             <div id="auth-info" style="color: var(--accent-emerald); font-size: 0.8rem; margin-bottom: 10px; display: none;"></div>
 
             <button type="submit" class="btn" id="auth-submit-btn">
-              ${mode === 'signin' ? 'Sign In' : 'Sign Up'}
+              ${mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Sign Up' : 'Send Reset Link'}
             </button>
           </form>
 
-          <div style="text-align: center; margin-top: 16px; font-size: 0.82rem; color: var(--text-secondary);">
-            ${mode === 'signin' ? "Don't have an account?" : 'Already have an account?'}
-            <button id="toggle-mode-btn" style="background: none; border: none; color: #a5b4fc; font-weight: 700; cursor: pointer; font-family: inherit;">
-              ${mode === 'signin' ? 'Sign up' : 'Sign in'}
-            </button>
+          ${mode === 'signin' ? `
+            <div style="text-align: center; margin-top: 12px;">
+              <button id="forgot-password-btn" style="background: none; border: none; color: var(--text-muted); font-size: 0.78rem; cursor: pointer; font-family: inherit;">
+                Forgot password?
+              </button>
+            </div>
+          ` : ''}
+
+          <div style="text-align: center; margin-top: 12px; font-size: 0.82rem; color: var(--text-secondary);">
+            ${isReset ? `
+              <button id="toggle-mode-btn" data-target="signin" style="background: none; border: none; color: #a5b4fc; font-weight: 700; cursor: pointer; font-family: inherit;">
+                Back to sign in
+              </button>
+            ` : `
+              ${mode === 'signin' ? "Don't have an account?" : 'Already have an account?'}
+              <button id="toggle-mode-btn" data-target="${mode === 'signin' ? 'signup' : 'signin'}" style="background: none; border: none; color: #a5b4fc; font-weight: 700; cursor: pointer; font-family: inherit;">
+                ${mode === 'signin' ? 'Sign up' : 'Sign in'}
+              </button>
+            `}
           </div>
         `}
       </div>
@@ -52,15 +76,20 @@ export function renderAuthView(container, { onLocalOnly } = {}) {
       onLocalOnly?.();
     });
 
-    container.querySelector('#toggle-mode-btn')?.addEventListener('click', () => {
-      mode = mode === 'signin' ? 'signup' : 'signin';
+    container.querySelector('#toggle-mode-btn')?.addEventListener('click', (e) => {
+      mode = e.currentTarget.getAttribute('data-target');
+      render();
+    });
+
+    container.querySelector('#forgot-password-btn')?.addEventListener('click', () => {
+      mode = 'reset';
       render();
     });
 
     container.querySelector('#auth-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = container.querySelector('#auth-email').value.trim();
-      const password = container.querySelector('#auth-password').value;
+      const password = container.querySelector('#auth-password')?.value;
       const errorEl = container.querySelector('#auth-error');
       const infoEl = container.querySelector('#auth-info');
       const submitBtn = container.querySelector('#auth-submit-btn');
@@ -76,20 +105,27 @@ export function renderAuthView(container, { onLocalOnly } = {}) {
           if (error) throw error;
           // On success, the caller's onAuthStateChange subscription (set up in app.js)
           // picks up the new session and re-renders — nothing else to do here.
-        } else {
+        } else if (mode === 'signup') {
           const { data, error } = await supabase.auth.signUp({ email, password });
           if (error) throw error;
           if (!data.session) {
             infoEl.textContent = 'Check your email to confirm your account, then sign in.';
             infoEl.style.display = 'block';
           }
+        } else {
+          const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin
+          });
+          if (error) throw error;
+          infoEl.textContent = "Check your email for a password reset link.";
+          infoEl.style.display = 'block';
         }
       } catch (err) {
         errorEl.textContent = err.message || 'Something went wrong.';
         errorEl.style.display = 'block';
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = mode === 'signin' ? 'Sign In' : 'Sign Up';
+        submitBtn.textContent = mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Sign Up' : 'Send Reset Link';
       }
     });
   }
