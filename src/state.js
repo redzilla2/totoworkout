@@ -295,9 +295,9 @@ class AppState {
           name: exMeta.name,
           category: exMeta.category || 'General',
           repRange: exItem.repRange || null,
-          // Seeds from the exercise library's per-exercise default rest time (e.g.
-          // heavy compounds rest longer than isolation work), editable per-set below.
-          restSeconds: exMeta.defaultRest || 60,
+          // Every exercise starts at a flat 2:00 rest — adjust per exercise in the
+          // rest selector below (heavier lifts vs. quick isolation/ab work, etc.).
+          restSeconds: 120,
           sets: sets
         };
       })

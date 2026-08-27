@@ -36,46 +36,53 @@ export function playSuccessChime() {
 }
 
 /**
- * Single two-tone "air horn" style blast (no external asset files required)
+ * Plays one or more sawtooth tones together as a single blast (no external
+ * asset files required) — shared by the countdown stab and the final horn.
  */
-function playHornBlast() {
+function playBlast(frequencies, duration, peakGain = 0.35) {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
     const gain = ctx.createGain();
 
-    osc1.type = 'sawtooth';
-    osc2.type = 'sawtooth';
-    osc1.frequency.setValueAtTime(233, ctx.currentTime); // low honk tone
-    osc2.frequency.setValueAtTime(294, ctx.currentTime); // classic two-tone air-horn interval
+    const oscillators = frequencies.map(freq => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      osc.connect(gain);
+      return osc;
+    });
 
+    const releaseStart = Math.max(ctx.currentTime + 0.03, ctx.currentTime + duration - 0.08);
     gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + 0.04);
-    gain.gain.setValueAtTime(0.35, ctx.currentTime + 0.35);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+    gain.gain.exponentialRampToValueAtTime(peakGain, ctx.currentTime + 0.03);
+    gain.gain.setValueAtTime(peakGain, releaseStart);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
 
-    osc1.connect(gain);
-    osc2.connect(gain);
     gain.connect(ctx.destination);
 
-    osc1.start();
-    osc2.start();
-    osc1.stop(ctx.currentTime + 0.5);
-    osc2.stop(ctx.currentTime + 0.5);
+    oscillators.forEach(osc => {
+      osc.start();
+      osc.stop(ctx.currentTime + duration + 0.02);
+    });
   } catch (err) {
     console.warn('Web Audio error:', err);
   }
 }
 
 /**
- * "Honk-honk" rest-over alert — plays two horn blasts back to back.
+ * Short, deep "stab" for the 3-2-1 countdown ticks leading up to the end of rest.
+ */
+export function playCountdownStab() {
+  playBlast([165], 0.15); // deep single tone, quick blast
+}
+
+/**
+ * Longer, slightly higher-pitched two-tone horn for when rest actually ends (0).
  */
 export function playHornSound() {
-  playHornBlast();
-  setTimeout(() => playHornBlast(), 550);
+  playBlast([233, 294], 0.6); // higher than the stab tone, sustained air-horn blast
 }
 
 /**
@@ -97,6 +104,10 @@ export class RestTimer {
     this.timerId = setInterval(() => {
       this.secondsLeft--;
       if (this.onTick) this.onTick(this.secondsLeft);
+
+      if (this.secondsLeft > 0 && this.secondsLeft <= 3) {
+        playCountdownStab();
+      }
 
       if (this.secondsLeft <= 0) {
         this.stop();
