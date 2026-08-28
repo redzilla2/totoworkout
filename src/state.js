@@ -43,14 +43,20 @@ function defaultAppData() {
 // anything the user actually customized (exercises, sets/reps added via the
 // Schedule editor), re-sync just the label fields from the current default on
 // every load; leave routines with no matching id (user-created ones) alone.
+// Also append any brand-new built-in routines (ids added to DEFAULT_ROUTINES
+// since this browser/account last saved) so a whole new program shows up for
+// returning users too, not just brand-new signups.
 function syncBuiltInRoutineMetadata(routines) {
   if (!routines) return routines;
   const defaultsById = new Map(DEFAULT_ROUTINES.map(r => [r.id, r]));
-  return routines.map(r => {
+  const existingIds = new Set(routines.map(r => r.id));
+  const synced = routines.map(r => {
     const def = defaultsById.get(r.id);
     if (!def) return r;
     return { ...r, name: def.name, icon: def.icon, color: def.color, category: def.category };
   });
+  const newBuiltIns = DEFAULT_ROUTINES.filter(def => !existingIds.has(def.id));
+  return synced.concat(newBuiltIns);
 }
 
 function loadLocalData() {
