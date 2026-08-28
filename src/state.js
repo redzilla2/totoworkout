@@ -27,6 +27,7 @@ function defaultAppData() {
     routines: DEFAULT_ROUTINES,
     schedule: defaultSchedule(),
     history: generateSampleHistory(),
+    bodyWeightLogs: [],
     activeWorkout: null,
     currentView: 'calendar',
     selectedDate: formatDate(new Date())
@@ -61,6 +62,7 @@ function loadLocalData() {
         routines: syncBuiltInRoutineMetadata(parsed.routines) || DEFAULT_ROUTINES,
         schedule: parsed.schedule || defaultSchedule(),
         history: parsed.history || generateSampleHistory(),
+        bodyWeightLogs: parsed.bodyWeightLogs || [],
         activeWorkout: parsed.activeWorkout || null,
         currentView: parsed.currentView || 'calendar',
         selectedDate: parsed.selectedDate || formatDate(new Date())
@@ -153,6 +155,7 @@ class AppState {
         routines: syncBuiltInRoutineMetadata(cloud.routines) || DEFAULT_ROUTINES,
         schedule: cloud.schedule || defaultSchedule(),
         history: cloud.history || generateSampleHistory(),
+        bodyWeightLogs: cloud.bodyWeightLogs || [],
         activeWorkout: cloud.activeWorkout || null,
         currentView: cloud.currentView || 'calendar',
         selectedDate: cloud.selectedDate || formatDate(new Date())
@@ -216,6 +219,7 @@ class AppState {
         routines: this.state.routines,
         schedule: this.state.schedule,
         history: this.state.history,
+        bodyWeightLogs: this.state.bodyWeightLogs,
         activeWorkout: this.state.activeWorkout,
         currentView: this.state.currentView,
         selectedDate: this.state.selectedDate
@@ -239,6 +243,7 @@ class AppState {
         routines: this.state.routines,
         schedule: this.state.schedule,
         history: this.state.history,
+        bodyWeightLogs: this.state.bodyWeightLogs,
         activeWorkout: this.state.activeWorkout,
         currentView: this.state.currentView,
         selectedDate: this.state.selectedDate
@@ -457,7 +462,32 @@ class AppState {
 
   clearAllData() {
     this.state.history = [];
+    this.state.bodyWeightLogs = [];
     this.state.activeWorkout = null;
+    this.notify();
+  }
+
+  // --- Body weight tracking ---
+
+  // One entry per calendar date — logging the same date again overwrites it
+  // rather than creating a duplicate point on the chart.
+  logBodyWeight(dateStr, weightKg) {
+    const existingIndex = this.state.bodyWeightLogs.findIndex(w => w.date === dateStr);
+    const entry = {
+      id: existingIndex >= 0 ? this.state.bodyWeightLogs[existingIndex].id : 'bw_' + Date.now(),
+      date: dateStr,
+      weightKg
+    };
+    if (existingIndex >= 0) {
+      this.state.bodyWeightLogs[existingIndex] = entry;
+    } else {
+      this.state.bodyWeightLogs.push(entry);
+    }
+    this.notify();
+  }
+
+  deleteBodyWeightLog(id) {
+    this.state.bodyWeightLogs = this.state.bodyWeightLogs.filter(w => w.id !== id);
     this.notify();
   }
 }

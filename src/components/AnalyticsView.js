@@ -1,9 +1,18 @@
 import { appState } from '../state.js';
-import { calculateStreak, calculateTotalVolume } from '../utils/helpers.js';
+import { calculateStreak, calculateTotalVolume, formatDate } from '../utils/helpers.js';
+
+// Module-level (not component-local) so the selected range survives the full
+// re-renders that fire on every appState.notify() — same pattern used by the
+// Weekly Schedule editor's selected-day state.
+let selectedRange = 'month';
+
+const RANGE_DAYS = { month: 30, '6month': 182, year: 365, all: Infinity };
+const RANGE_LABELS = { month: 'Month', '6month': '6 Month', year: 'Year', all: 'All' };
 
 export function renderAnalyticsView(container) {
   const state = appState.getState();
   const history = state.history || [];
+  const bodyWeightLogs = state.bodyWeightLogs || [];
 
   const streak = calculateStreak(history);
   const totalVolume = calculateTotalVolume(history);
@@ -27,6 +36,9 @@ export function renderAnalyticsView(container) {
     'Full Body': '#f59e0b'
   };
 
+  const sortedWeights = [...bodyWeightLogs].sort((a, b) => a.date.localeCompare(b.date));
+  const filteredWeights = filterWeightsByRange(sortedWeights, selectedRange);
+
   container.innerHTML = `
     <!-- Top Summary Grid -->
     <div class="glass-card">
@@ -49,6 +61,63 @@ export function renderAnalyticsView(container) {
         <div style="font-size: 2rem; font-weight: 800; color: #6366f1;">${totalVolume.toLocaleString()} <span style="font-size: 1rem;">KG</span></div>
         <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 700;">TOTAL LIFTED VOLUME</div>
       </div>
+    </div>
+
+    <!-- Body Weight Tracking -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-title">⚖️ Body Weight</div>
+      </div>
+
+      <form id="log-weight-form" style="display: flex; gap: 8px; align-items: flex-end; margin-bottom: 16px;">
+        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-input" id="weight-date-input" value="${formatDate(new Date())}" max="${formatDate(new Date())}" required>
+        </div>
+        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+          <label class="form-label">Weight (kg)</label>
+          <input type="number" class="form-input" id="weight-value-input" step="0.1" min="0" placeholder="e.g. 82.5" required>
+        </div>
+        <button type="submit" class="btn" style="width: auto; padding: 12px 16px;">Log</button>
+      </form>
+
+      ${bodyWeightLogs.length > 0 ? `
+        <div style="display: flex; gap: 6px; margin-bottom: 14px;">
+          ${Object.keys(RANGE_LABELS).map(key => `
+            <button class="weight-range-pill" data-range="${key}" style="flex: 1; padding: 8px 4px; border-radius: var(--radius-md); border: 1px solid ${key === selectedRange ? 'var(--accent-cyan)' : 'var(--border-glass)'}; background: ${key === selectedRange ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.03)'}; color: ${key === selectedRange ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-weight: 700; font-size: 0.75rem; cursor: pointer; font-family: inherit; transition: all 0.2s ease;">
+              ${RANGE_LABELS[key]}
+            </button>
+          `).join('')}
+        </div>
+
+        <div id="weight-chart-wrapper" style="position: relative;">
+          ${renderWeightChartSVG(filteredWeights)}
+        </div>
+
+        ${renderWeightSummaryRow(filteredWeights)}
+
+        <details style="margin-top: 16px;">
+          <summary style="font-size: 0.82rem; color: var(--text-secondary); cursor: pointer;">
+            ${bodyWeightLogs.length} ${bodyWeightLogs.length === 1 ? 'entry' : 'entries'} logged
+          </summary>
+          <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 10px; max-height: 220px; overflow-y: auto;">
+            ${[...bodyWeightLogs].sort((a, b) => b.date.localeCompare(a.date)).map(w => `
+              <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-glass); font-size: 0.82rem;">
+                <span>${formatShortMonthDay(w.date)}</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <strong>${w.weightKg} kg</strong>
+                  <button class="icon-btn delete-weight-btn" data-id="${w.id}" title="Delete" style="width: 24px; height: 24px; font-size: 11px; color: var(--accent-rose);">🗑️</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </details>
+      ` : `
+        <div style="text-align: center; padding: 20px 10px; color: var(--text-muted);">
+          <div style="font-size: 28px; margin-bottom: 6px;">⚖️</div>
+          <div style="font-size: 0.85rem;">Log your weight above to start seeing your trend here.</div>
+        </div>
+      `}
     </div>
 
     <!-- Workout Type Distribution -->
@@ -121,4 +190,219 @@ export function renderAnalyticsView(container) {
       appState.clearAllData();
     }
   });
+
+  container.querySelector('#log-weight-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const date = container.querySelector('#weight-date-input').value;
+    const weight = parseFloat(container.querySelector('#weight-value-input').value);
+    if (!date || !weight || weight <= 0) return;
+    appState.logBodyWeight(date, weight);
+  });
+
+  container.querySelectorAll('.weight-range-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedRange = btn.getAttribute('data-range');
+      renderAnalyticsView(container);
+    });
+  });
+
+  container.querySelectorAll('.delete-weight-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      if (confirm('Delete this weight entry?')) {
+        appState.deleteBodyWeightLog(id);
+      }
+    });
+  });
+
+  setupWeightChartInteractivity(container, filteredWeights);
+}
+
+function filterWeightsByRange(sortedWeights, range) {
+  if (range === 'all') return sortedWeights;
+  const days = RANGE_DAYS[range] ?? RANGE_DAYS.month;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = formatDate(cutoff);
+  return sortedWeights.filter(w => w.date >= cutoffStr);
+}
+
+function formatShortMonthDay(dateStr) {
+  const parts = dateStr.split('-');
+  if (parts.length < 3) return dateStr;
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+// Single source of truth for the chart's coordinate system — used both when
+// building the SVG markup and when mapping pointer position back to the
+// nearest data point for the hover layer, so the two can never drift apart.
+function computeWeightChartLayout(points) {
+  const W = 300, H = 170;
+  const padL = 38, padR = 10, padT = 14, padB = 26;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const weights = points.map(p => p.weightKg);
+  let minW = Math.min(...weights);
+  let maxW = Math.max(...weights);
+  if (minW === maxW) { minW -= 1; maxW += 1; }
+  const rangePad = (maxW - minW) * 0.15 || 1;
+  minW -= rangePad;
+  maxW += rangePad;
+
+  const xForIndex = (i) => padL + (points.length > 1 ? (i / (points.length - 1)) * plotW : plotW / 2);
+  const yForWeight = (w) => padT + plotH - ((w - minW) / (maxW - minW)) * plotH;
+
+  return { W, H, padL, padR, padT, padB, plotW, plotH, minW, maxW, xForIndex, yForWeight };
+}
+
+function renderWeightChartSVG(points) {
+  if (points.length < 2) {
+    return `
+      <div style="text-align: center; padding: 30px 10px; color: var(--text-muted); background: rgba(15, 23, 42, 0.4); border-radius: var(--radius-md);">
+        <div style="font-size: 0.85rem;">Log at least 2 entries in this range to see a trend line.</div>
+      </div>
+    `;
+  }
+
+  const { W, H, padL, padR, padT, plotW, plotH, minW, maxW, xForIndex, yForWeight } = computeWeightChartLayout(points);
+
+  // Y-axis: 4 evenly spaced reference gridlines with kg labels (recessive —
+  // low-opacity lines, muted label ink, never competing with the data line).
+  const tickCount = 4;
+  const gridLines = [];
+  for (let t = 0; t <= tickCount; t++) {
+    const val = minW + (t / tickCount) * (maxW - minW);
+    const y = yForWeight(val);
+    gridLines.push(`
+      <line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+      <text x="${(padL - 6).toFixed(1)}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--text-muted)">${val.toFixed(1)}</text>
+    `);
+  }
+
+  // X-axis: a handful of evenly spaced date labels rather than one per point,
+  // so they never collide regardless of how many entries are in range.
+  const xLabelCount = Math.min(4, points.length);
+  const xLabelIndices = [...new Set(
+    Array.from({ length: xLabelCount }, (_, t) => Math.round((t / (xLabelCount - 1 || 1)) * (points.length - 1)))
+  )];
+  const xLabels = xLabelIndices.map(idx => `
+    <text x="${xForIndex(idx).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="8" fill="var(--text-muted)">${formatShortMonthDay(points[idx].date)}</text>
+  `).join('');
+
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xForIndex(i).toFixed(1)} ${yForWeight(p.weightKg).toFixed(1)}`).join(' ');
+  const floorY = (padT + plotH).toFixed(1);
+  const areaPath = `${linePath} L ${xForIndex(points.length - 1).toFixed(1)} ${floorY} L ${xForIndex(0).toFixed(1)} ${floorY} Z`;
+
+  return `
+    <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; display: block; overflow: visible;" id="weight-chart-svg">
+      <defs>
+        <linearGradient id="weightAreaGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--accent-cyan)" stop-opacity="0.25" />
+          <stop offset="100%" stop-color="var(--accent-cyan)" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      ${gridLines.join('')}
+      <path d="${areaPath}" fill="url(#weightAreaGradient)" stroke="none" />
+      <path d="${linePath}" fill="none" stroke="var(--accent-cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      ${xLabels}
+      <line id="weight-crosshair-line" x1="0" y1="${padT}" x2="0" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.3)" stroke-width="1" visibility="hidden" />
+      <circle id="weight-crosshair-dot" r="4" fill="var(--accent-cyan)" stroke="var(--bg-dark)" stroke-width="1.5" visibility="hidden" />
+      <rect id="weight-hover-target" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" style="cursor: crosshair;" />
+    </svg>
+    <div id="weight-tooltip" style="position: absolute; display: none; pointer-events: none; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 5px 9px; font-size: 0.72rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; z-index: 10; box-shadow: var(--shadow-card); transform: translateY(-100%);"></div>
+  `;
+}
+
+function renderWeightSummaryRow(points) {
+  if (points.length === 0) return '';
+  const latest = points[points.length - 1];
+  const first = points[0];
+  const delta = latest.weightKg - first.weightKg;
+  // Neutral ink, not a status color — a weight change isn't inherently
+  // "good" or "bad," that depends on the person's own goal.
+  const deltaStr = points.length > 1 ? `${delta > 0 ? '+' : ''}${delta.toFixed(1)} kg` : '—';
+
+  return `
+    <div style="display: flex; justify-content: space-around; margin-top: 14px; text-align: center;">
+      <div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: var(--accent-cyan);">${latest.weightKg} kg</div>
+        <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">LATEST</div>
+      </div>
+      <div style="width: 1px; background: var(--border-glass);"></div>
+      <div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: var(--text-primary);">${deltaStr}</div>
+        <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">CHANGE IN RANGE</div>
+      </div>
+    </div>
+  `;
+}
+
+// Crosshair + tooltip on hover/touch, per the dataviz skill's line-chart
+// interaction guidance — re-queries the SVG's own elements each render call
+// rather than caching across re-renders, same defensive pattern used by the
+// rest/elapsed timers elsewhere in the app.
+function setupWeightChartInteractivity(container, points) {
+  const svg = container.querySelector('#weight-chart-svg');
+  const hoverTarget = container.querySelector('#weight-hover-target');
+  if (!svg || !hoverTarget || points.length < 2) return;
+
+  const layout = computeWeightChartLayout(points);
+  const crosshairLine = svg.querySelector('#weight-crosshair-line');
+  const crosshairDot = svg.querySelector('#weight-crosshair-dot');
+  const tooltip = container.querySelector('#weight-tooltip');
+
+  function nearestIndexForClientX(clientX) {
+    const rect = svg.getBoundingClientRect();
+    const relX = ((clientX - rect.left) / rect.width) * layout.W;
+    let nearest = 0;
+    let minDist = Infinity;
+    points.forEach((p, i) => {
+      const dist = Math.abs(layout.xForIndex(i) - relX);
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = i;
+      }
+    });
+    return nearest;
+  }
+
+  function showAt(index) {
+    const p = points[index];
+    const x = layout.xForIndex(index);
+    const y = layout.yForWeight(p.weightKg);
+
+    crosshairLine.setAttribute('x1', x);
+    crosshairLine.setAttribute('x2', x);
+    crosshairLine.setAttribute('visibility', 'visible');
+    crosshairDot.setAttribute('cx', x);
+    crosshairDot.setAttribute('cy', y);
+    crosshairDot.setAttribute('visibility', 'visible');
+
+    if (tooltip) {
+      tooltip.style.display = 'block';
+      tooltip.textContent = `${formatShortMonthDay(p.date)} · ${p.weightKg} kg`;
+      tooltip.style.left = `${((x / layout.W) * 100).toFixed(1)}%`;
+      tooltip.style.top = `${((y / layout.H) * 100).toFixed(1)}%`;
+    }
+  }
+
+  function hide() {
+    crosshairLine.setAttribute('visibility', 'hidden');
+    crosshairDot.setAttribute('visibility', 'hidden');
+    if (tooltip) tooltip.style.display = 'none';
+  }
+
+  hoverTarget.addEventListener('mousemove', (e) => showAt(nearestIndexForClientX(e.clientX)));
+  hoverTarget.addEventListener('mouseleave', hide);
+  hoverTarget.addEventListener('touchstart', (e) => {
+    const touch = e.touches[0];
+    if (touch) showAt(nearestIndexForClientX(touch.clientX));
+  }, { passive: true });
+  hoverTarget.addEventListener('touchmove', (e) => {
+    const touch = e.touches[0];
+    if (touch) showAt(nearestIndexForClientX(touch.clientX));
+  }, { passive: true });
+  hoverTarget.addEventListener('touchend', hide);
 }
