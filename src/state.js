@@ -1,5 +1,5 @@
 import { DEFAULT_EXERCISES } from './data/exercises.js';
-import { DEFAULT_ROUTINES, PROGRAMS } from './data/defaultRoutines.js';
+import { DEFAULT_ROUTINES, PROGRAMS, REMOVED_BUILTIN_ROUTINE_IDS } from './data/defaultRoutines.js';
 import { generateSampleHistory } from './data/sampleHistory.js';
 import { formatDate, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg, calculateBMR, calculateTDEE, calculateCalorieTarget, pickProgram } from './utils/helpers.js';
 import { moveArrayItem } from './utils/dragReorder.js';
@@ -60,18 +60,36 @@ function defaultAppData() {
 // every load; leave routines with no matching id (user-created ones) alone.
 // Also append any brand-new built-in routines (ids added to DEFAULT_ROUTINES
 // since this browser/account last saved) so a whole new program shows up for
-// returning users too, not just brand-new signups.
+// returning users too, not just brand-new signups. And drop any routine
+// whose id is in REMOVED_BUILTIN_ROUTINE_IDS — a built-in that was
+// deliberately deleted from the catalog, not just renamed — so it doesn't
+// linger forever on an account that saved it before the removal.
 function syncBuiltInRoutineMetadata(routines) {
   if (!routines) return routines;
   const defaultsById = new Map(DEFAULT_ROUTINES.map(r => [r.id, r]));
   const existingIds = new Set(routines.map(r => r.id));
-  const synced = routines.map(r => {
-    const def = defaultsById.get(r.id);
-    if (!def) return r;
-    return { ...r, name: def.name, icon: def.icon, color: def.color, category: def.category };
-  });
+  const synced = routines
+    .filter(r => !REMOVED_BUILTIN_ROUTINE_IDS.includes(r.id))
+    .map(r => {
+      const def = defaultsById.get(r.id);
+      if (!def) return r;
+      return { ...r, name: def.name, icon: def.icon, color: def.color, category: def.category };
+    });
   const newBuiltIns = DEFAULT_ROUTINES.filter(def => !existingIds.has(def.id));
   return synced.concat(newBuiltIns);
+}
+
+// Clears any weekly-schedule day still pointing at a routine id that no
+// longer exists (currently just REMOVED_BUILTIN_ROUTINE_IDS) — otherwise
+// that day would silently show as a rest day (getScheduledRoutine can't
+// find the routine) with no way to tell it apart from an intentional one.
+function sanitizeSchedule(schedule) {
+  if (!schedule) return schedule;
+  const cleaned = { ...schedule };
+  Object.keys(cleaned).forEach(day => {
+    if (REMOVED_BUILTIN_ROUTINE_IDS.includes(cleaned[day])) cleaned[day] = null;
+  });
+  return cleaned;
 }
 
 function loadLocalData() {
@@ -81,7 +99,7 @@ function loadLocalData() {
       const parsed = JSON.parse(saved);
       return {
         routines: syncBuiltInRoutineMetadata(parsed.routines) || DEFAULT_ROUTINES,
-        schedule: parsed.schedule || defaultSchedule(),
+        schedule: sanitizeSchedule(parsed.schedule || defaultSchedule()),
         // Falls back to empty, not fake demo data, if this saved record is
         // somehow missing its history — same reasoning as defaultAppData().
         history: parsed.history || [],
@@ -199,7 +217,7 @@ class AppState {
       this.state = {
         exercises: DEFAULT_EXERCISES,
         routines: syncBuiltInRoutineMetadata(cloud.routines) || DEFAULT_ROUTINES,
-        schedule: cloud.schedule || defaultSchedule(),
+        schedule: sanitizeSchedule(cloud.schedule || defaultSchedule()),
         // Same reasoning as loadLocalData() — an empty fallback, not fake
         // demo data, if this cloud record is somehow missing its history.
         history: cloud.history || [],

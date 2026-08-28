@@ -1,7 +1,18 @@
+// Built-in routine ids that used to exist here but were deliberately
+// removed (not renamed — see syncBuiltInRoutineMetadata in state.js for
+// renames, which are handled separately). A saved account that already has
+// one of these gets it pruned on next load, including any weekly-schedule
+// day pointing at it — see state.js. Never add a user-created routine's id
+// here; those use a distinct 'routine_custom_'/'routine_<timestamp>' id
+// scheme and are never touched by this list.
+export const REMOVED_BUILTIN_ROUTINE_IDS = [
+  'routine_wed_arms' // folded the 5-day Dumbbell program down to 4 (Upper Lower 4 Day DB)
+];
+
 export const DEFAULT_ROUTINES = [
   {
     id: 'routine_mon_upper_a',
-    name: 'Dumbbell 5 Day - Upper Body A',
+    name: 'Upper Lower 4 Day DB - Upper Body A',
     category: 'Push / Upper',
     icon: '🔥',
     color: '#3b82f6',
@@ -16,7 +27,7 @@ export const DEFAULT_ROUTINES = [
   },
   {
     id: 'routine_tue_lower_a',
-    name: 'Dumbbell 5 Day - Lower Body A & Core',
+    name: 'Upper Lower 4 Day DB - Lower Body A & Core',
     category: 'Legs / Core',
     icon: '🦵',
     color: '#10b981',
@@ -30,22 +41,8 @@ export const DEFAULT_ROUTINES = [
     ]
   },
   {
-    id: 'routine_wed_arms',
-    name: 'Dumbbell 5 Day - Arms & Forearms',
-    category: 'Arms',
-    icon: '⚡',
-    color: '#8b5cf6',
-    exercises: [
-      { exerciseId: 'ex_alt_db_curl', defaultSets: 3, defaultReps: 10, defaultWeight: 12 },
-      { exerciseId: 'ex_floor_db_skull_crusher', defaultSets: 3, defaultReps: 10, defaultWeight: 10 },
-      { exerciseId: 'ex_cross_body_hammer_curl', defaultSets: 2, defaultReps: 12, defaultWeight: 10 },
-      { exerciseId: 'ex_db_tate_press', defaultSets: 2, defaultReps: 12, defaultWeight: 8 },
-      { exerciseId: 'ex_db_reverse_curl', defaultSets: 2, defaultReps: 12, defaultWeight: 8 }
-    ]
-  },
-  {
     id: 'routine_thu_upper_b',
-    name: 'Dumbbell 5 Day - Upper Body B',
+    name: 'Upper Lower 4 Day DB - Upper Body B',
     category: 'Push / Upper',
     icon: '💥',
     color: '#f59e0b',
@@ -61,7 +58,7 @@ export const DEFAULT_ROUTINES = [
   },
   {
     id: 'routine_fri_lower_b',
-    name: 'Dumbbell 5 Day - Lower Body B & Glutes',
+    name: 'Upper Lower 4 Day DB - Lower Body B & Glutes',
     category: 'Legs',
     icon: '🎯',
     color: '#ec4899',
@@ -381,11 +378,11 @@ export const DEFAULT_ROUTINES = [
 // schemes. User-created routines are never part of a program.
 export const PROGRAMS = [
   {
-    id: 'dumbbell5',
-    label: 'Dumbbell 5 Day',
-    daysPerWeek: 5,
+    id: 'upperlower4db',
+    label: 'Upper Lower 4 Day DB',
+    daysPerWeek: 4,
     equipment: 'dumbbell', // no barbell/machine access needed
-    routineIds: ['routine_mon_upper_a', 'routine_tue_lower_a', 'routine_wed_arms', 'routine_thu_upper_b', 'routine_fri_lower_b']
+    routineIds: ['routine_mon_upper_a', 'routine_tue_lower_a', 'routine_thu_upper_b', 'routine_fri_lower_b']
   },
   {
     id: 'upperlower4',
