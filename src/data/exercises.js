@@ -64,6 +64,10 @@ export const DEFAULT_EXERCISES = [
   { id: 'ex_calf_raise_standing', name: 'Standing Calf Raise', category: 'Legs', equipment: 'Machine', defaultRest: 60 },
   { id: 'ex_calf_raise_machine', name: 'Calf Raise (Machine)', category: 'Legs', equipment: 'Machine', defaultRest: 60 },
   { id: 'ex_abs_triset', name: 'Abs Triset', category: 'Core', equipment: 'Bodyweight', defaultRest: 45 },
+
+  // Gym Full Body 3 Day Program Exercises
+  { id: 'ex_chest_supported_row_neutral', name: 'Chest-Supported Row (Neutral Grip)', category: 'Back', equipment: 'Dumbbell / Incline Bench', defaultRest: 90 },
+  { id: 'ex_french_press_overhead_ext', name: 'French Press (Overhead Triceps Extension)', category: 'Arms', equipment: 'EZ Bar', defaultRest: 60 },
   // Free Exercise DB additions (public domain: github.com/yuhonas/free-exercise-db)
 
   // Chest

@@ -139,5 +139,56 @@ export const DEFAULT_ROUTINES = [
       { exerciseId: 'ex_abs_triset', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: 'triset' },
       { exerciseId: 'ex_dumbbell_curl', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-15' }
     ]
+  },
+
+  // Gym Full Body Split - 3 Day Program
+  {
+    id: 'routine_fb_day1',
+    name: 'FullBody 3 Day - Day 1',
+    category: 'Full Body',
+    icon: '🏋️',
+    color: '#14b8a6',
+    exercises: [
+      { exerciseId: 'ex_fedb_barbell_squat', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_bench_press', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_lat_pulldown', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_fedb_barbell_shoulder_press', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-15' },
+      { exerciseId: 'ex_barbell_curl', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-15' },
+      { exerciseId: 'ex_skullcrushers', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-15' },
+      { exerciseId: 'ex_leg_curl', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' }
+    ]
+  },
+  {
+    id: 'routine_fb_day2',
+    name: 'FullBody 3 Day - Day 2',
+    category: 'Full Body',
+    icon: '🚀',
+    color: '#eab308',
+    exercises: [
+      { exerciseId: 'ex_barbell_row', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_incline_db_bench', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_fedb_standing_dumbbell_upright_row', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12-15' },
+      { exerciseId: 'ex_db_lateral_raise', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12-15' },
+      { exerciseId: 'ex_hammer_curl', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12-15' },
+      { exerciseId: 'ex_fedb_triceps_pushdown', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12-15' },
+      { exerciseId: 'ex_leg_extension', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_fedb_seated_leg_curl', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12-15' }
+    ]
+  },
+  {
+    id: 'routine_fb_day3',
+    name: 'FullBody 3 Day - Day 3',
+    category: 'Full Body',
+    icon: '🔱',
+    color: '#f43f5e',
+    exercises: [
+      { exerciseId: 'ex_rdl', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_chest_supported_row_neutral', defaultSets: 4, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_leg_press', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_fedb_flat_bench_cable_flyes', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_fedb_reverse_flyes', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_fedb_reverse_barbell_curl', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12-15' },
+      { exerciseId: 'ex_french_press_overhead_ext', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12-15' }
+    ]
   }
 ];
