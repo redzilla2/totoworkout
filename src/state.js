@@ -1,7 +1,7 @@
 import { DEFAULT_EXERCISES } from './data/exercises.js';
 import { DEFAULT_ROUTINES } from './data/defaultRoutines.js';
 import { generateSampleHistory } from './data/sampleHistory.js';
-import { formatDate, isCardioCategory } from './utils/helpers.js';
+import { formatDate, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg } from './utils/helpers.js';
 import { moveArrayItem } from './utils/dragReorder.js';
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 
@@ -412,18 +412,35 @@ class AppState {
 
     let totalVolume = 0;
     let totalCalories = 0;
+    let cardioMinutes = 0;
+    let hasCompletedStrengthSets = false;
     session.exercises.forEach(ex => {
       const cardio = isCardioCategory(ex.category);
       ex.sets.forEach(s => {
         if (s.completed) {
           if (cardio) {
             totalCalories += (s.calories || 0);
+            cardioMinutes += (s.minutes || 0);
           } else {
             totalVolume += (s.reps * (s.weight || 1));
+            hasCompletedStrengthSets = true;
           }
         }
       });
     });
+
+    // Strength sets never had a calorie figure at all — logged cardio already
+    // carries a user-entered count above, so only estimate the *remaining*
+    // (non-cardio) portion of the session's duration, using MET × body
+    // weight × time. See utils/helpers.js for the formula and its caveats.
+    if (hasCompletedStrengthSets) {
+      const strengthMinutes = Math.max(0, durationMinutes - cardioMinutes);
+      totalCalories += estimateStrengthCalories(strengthMinutes, getLatestBodyWeightKg(this.state));
+    }
+    // Flags the log's total as partly/fully an estimate rather than a fully
+    // user-entered figure, so the UI can label it "(est.)" instead of
+    // presenting a MET-formula guess as a precisely measured number.
+    const caloriesEstimated = hasCompletedStrengthSets;
 
     const completedLog = {
       id: 'log_' + Date.now(),
@@ -436,6 +453,7 @@ class AppState {
       durationMinutes: durationMinutes,
       totalVolume: totalVolume,
       totalCalories: totalCalories,
+      caloriesEstimated: caloriesEstimated,
       notes: session.notes || '',
       userLogged: true, // Flag for user completion
       exercises: session.exercises

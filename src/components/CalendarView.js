@@ -1,5 +1,5 @@
 import { appState } from '../state.js';
-import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine, isCardioCategory } from '../utils/helpers.js';
+import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg } from '../utils/helpers.js';
 
 export function renderCalendarView(container) {
   const state = appState.getState();
@@ -112,7 +112,7 @@ export function renderCalendarView(container) {
               <div style="font-size: 0.82rem; color: var(--text-secondary); display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;">
                 <span>⏱️ ${w.durationMinutes || 45} mins</span>
                 <span>🏋️ <strong class="vol-display" style="color: var(--accent-emerald);">${(w.totalVolume || 0).toLocaleString()} kg total volume</strong></span>
-                ${w.totalCalories ? `<span>🔥 <strong style="color: var(--accent-rose);">${w.totalCalories.toLocaleString()} kcal</strong></span>` : ''}
+                ${w.totalCalories ? `<span>🔥 <strong style="color: var(--accent-rose);">${w.totalCalories.toLocaleString()} kcal</strong>${w.caloriesEstimated ? ' <span style="color: var(--text-muted); font-weight: 400;">(est.)</span>' : ''}</span>` : ''}
               </div>
 
               <!-- Editable Exercises & Set Weights Table -->
@@ -302,18 +302,30 @@ export function renderCalendarView(container) {
         }
       });
 
+      let newCardioMinutes = 0;
+      let hasStrengthSets = false;
       workoutLog.exercises.forEach(ex => {
         const cardio = isCardioCategory(ex.category);
         ex.sets.forEach(s => {
           if (cardio) {
             newTotalCalories += (s.calories || 0);
+            newCardioMinutes += (s.minutes || 0);
           } else {
             newTotalVolume += (s.reps * (s.weight || 1));
+            hasStrengthSets = true;
           }
         });
       });
+      // Strength sets have no user-entered calorie figure — estimate the
+      // non-cardio portion of the session from its duration. See
+      // utils/helpers.js for the MET formula and its caveats.
+      if (hasStrengthSets) {
+        const strengthMinutes = Math.max(0, (workoutLog.durationMinutes || 0) - newCardioMinutes);
+        newTotalCalories += estimateStrengthCalories(strengthMinutes, getLatestBodyWeightKg(state));
+      }
       workoutLog.totalVolume = newTotalVolume;
       workoutLog.totalCalories = newTotalCalories;
+      workoutLog.caloriesEstimated = hasStrengthSets;
       workoutLog.userLogged = true; // Mark as logged for streak increment!
 
       appState.addWorkoutLog(workoutLog);
@@ -620,8 +632,11 @@ function openQuickLogModal(dateStr) {
         ]
       };
       totalVolume = defaultWeight * 30;
-      totalCalories = 0;
+      // No cardio minutes to subtract here — this quick-log entry is a
+      // single strength exercise, so its whole assumed duration counts.
+      // See utils/helpers.js for the MET formula and its caveats.
       durationMinutes = 45;
+      totalCalories = estimateStrengthCalories(durationMinutes, getLatestBodyWeightKg(appState.getState()));
     }
 
     appState.addWorkoutLog({
@@ -634,6 +649,7 @@ function openQuickLogModal(dateStr) {
       durationMinutes: durationMinutes,
       totalVolume: totalVolume,
       totalCalories: totalCalories,
+      caloriesEstimated: !cardio,
       notes: notes,
       userLogged: true, // Flag for user completion
       exercises: [exerciseEntry]

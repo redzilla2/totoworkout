@@ -77,6 +77,43 @@ export function isCardioCategory(category) {
   return category === 'Cardio';
 }
 
+// --- Calorie estimation for strength/resistance training ---
+//
+// Cardio exercises already carry a user-entered calorie count per set, but
+// strength sets never did — there's no way to burn 0 kcal doing a real
+// workout, that's just a gap in what got tracked. Estimate it instead, using
+// the standard MET (Metabolic Equivalent of Task) formula:
+//   kcal = MET × 3.5 × bodyWeightKg / 200 × minutes
+// This is the same method most fitness trackers use for activities without a
+// heart-rate sensor — it can't know your actual effort, so treat it as a
+// reasonable estimate, not a lab-measured number.
+
+// General resistance training at moderate-to-vigorous effort, per the
+// Compendium of Physical Activities. One blended value rather than a MET
+// per exercise/intensity — good enough for an estimate, and avoids needing
+// an effort rating on every single movement.
+const STRENGTH_TRAINING_MET = 5.0;
+
+// Used only when the user hasn't logged a body weight yet, so a first
+// workout still gets a plausible estimate instead of 0 kcal — a rough
+// population-average adult, nothing more.
+const DEFAULT_BODY_WEIGHT_KG = 75;
+
+/** Most recent logged body weight, or the population-average fallback. */
+export function getLatestBodyWeightKg(state) {
+  const logs = state?.bodyWeightLogs;
+  if (!logs || logs.length === 0) return DEFAULT_BODY_WEIGHT_KG;
+  const latest = [...logs].sort((a, b) => b.date.localeCompare(a.date))[0];
+  return latest?.weightKg || DEFAULT_BODY_WEIGHT_KG;
+}
+
+/** Estimated calories burned for `minutes` of resistance training. */
+export function estimateStrengthCalories(minutes, bodyWeightKg) {
+  if (!minutes || minutes <= 0) return 0;
+  const weight = bodyWeightKg || DEFAULT_BODY_WEIGHT_KG;
+  return Math.round(STRENGTH_TRAINING_MET * 3.5 * weight / 200 * minutes);
+}
+
 // Indexed to match JS Date#getDay() (0 = Sunday ... 6 = Saturday)
 export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 export const DAY_SHORT_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
