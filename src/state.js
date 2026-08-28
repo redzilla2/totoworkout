@@ -85,6 +85,7 @@ class AppState {
     this.listeners = [];
     this.session = null;
     this.cloudSaveTimer = null;
+    this.cloudSaveDirty = false;
     this.passwordRecovery = false;
 
     // When cloud sync isn't configured, skip the auth gate entirely.
@@ -129,6 +130,22 @@ class AppState {
         this._resolveAuthReady?.();
         this._resolveAuthReady = null;
       });
+
+      // The cloud save is debounced (see scheduleCloudSave) so rapid edits don't
+      // spam an upsert per keystroke — but that leaves a window where a page
+      // refresh (or the phone backgrounding/reloading the tab) cancels the
+      // pending timer before it fires. On the very next load, loadCloudState()
+      // unconditionally overwrites local data with whatever's in the cloud —
+      // so a workout finished right before that refresh would still be sitting
+      // in localStorage, get immediately clobbered by the stale cloud copy, and
+      // look like it was never logged at all. 'visibilitychange' firing on
+      // hidden reliably precedes that navigation (unlike 'beforeunload', which
+      // often doesn't leave enough time for an in-flight fetch to complete), so
+      // flushing here closes the race instead of waiting out the debounce.
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) this.flushCloudSave();
+      });
+      window.addEventListener('pagehide', () => this.flushCloudSave());
     }
   }
 
@@ -237,12 +254,25 @@ class AppState {
 
   scheduleCloudSave() {
     if (!isSupabaseConfigured || !this.session) return;
+    this.cloudSaveDirty = true;
     clearTimeout(this.cloudSaveTimer);
     this.cloudSaveTimer = setTimeout(() => this.saveToCloud(), CLOUD_SAVE_DEBOUNCE_MS);
   }
 
+  // Sends a pending debounced save right now instead of waiting out the
+  // timer — see the visibilitychange/pagehide listeners in the constructor
+  // for why this matters. No-ops if nothing's actually pending, so it's safe
+  // to call from a listener that can fire many times (tab-switching, etc.)
+  // without spamming redundant upserts.
+  flushCloudSave() {
+    if (!this.cloudSaveDirty) return;
+    clearTimeout(this.cloudSaveTimer);
+    this.saveToCloud();
+  }
+
   async saveToCloud() {
     if (!this.session) return;
+    this.cloudSaveDirty = false;
     const { error } = await supabase.from('app_state').upsert({
       user_id: this.session.user.id,
       data: {
