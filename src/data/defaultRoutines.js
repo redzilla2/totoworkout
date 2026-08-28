@@ -372,3 +372,47 @@ export const DEFAULT_ROUTINES = [
     ]
   }
 ];
+
+// Groups the built-in routines above into their named programs, in the
+// order each program's days are meant to run across a week — used by the
+// onboarding wizard to recommend a program from "how many days can you
+// train" and assign its days to the specific weekdays picked, without
+// having to pattern-match the (inconsistent, historically-grown) routine id
+// schemes. User-created routines are never part of a program.
+export const PROGRAMS = [
+  {
+    id: 'dumbbell5',
+    label: 'Dumbbell 5 Day',
+    daysPerWeek: 5,
+    equipment: 'dumbbell', // no barbell/machine access needed
+    routineIds: ['routine_mon_upper_a', 'routine_tue_lower_a', 'routine_wed_arms', 'routine_thu_upper_b', 'routine_fri_lower_b']
+  },
+  {
+    id: 'upperlower4',
+    label: 'UpperLower 4 Day',
+    daysPerWeek: 4,
+    equipment: 'gym',
+    routineIds: ['routine_ul_upper_1', 'routine_ul_lower_1', 'routine_ul_upper_2', 'routine_ul_lower_2']
+  },
+  {
+    id: 'fullbody3',
+    label: 'FullBody 3 Day',
+    daysPerWeek: 3,
+    equipment: 'gym',
+    routineIds: ['routine_fb_day1', 'routine_fb_day2', 'routine_fb_day3']
+  },
+  {
+    id: 'ppl6',
+    label: 'PPL 6 Day',
+    daysPerWeek: 6,
+    equipment: 'gym',
+    routineIds: ['routine_ppl_day1_push_str', 'routine_ppl_day2_pull_str', 'routine_ppl_day3_legs_str', 'routine_ppl_day4_push_hyp', 'routine_ppl_day5_pull_hyp', 'routine_ppl_day6_legs_hyp']
+  },
+  {
+    id: 'hybrid5',
+    label: 'Hybrid 5 Day',
+    daysPerWeek: 5,
+    equipment: 'gym',
+    routineIds: ['routine_hybrid5_day1', 'routine_hybrid5_day2', 'routine_hybrid5_day3', 'routine_hybrid5_day4', 'routine_hybrid5_day5']
+  }
+];

@@ -1,7 +1,7 @@
 import { DEFAULT_EXERCISES } from './data/exercises.js';
-import { DEFAULT_ROUTINES } from './data/defaultRoutines.js';
+import { DEFAULT_ROUTINES, PROGRAMS } from './data/defaultRoutines.js';
 import { generateSampleHistory } from './data/sampleHistory.js';
-import { formatDate, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg } from './utils/helpers.js';
+import { formatDate, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg, calculateBMR, calculateTDEE, calculateCalorieTarget, pickProgram } from './utils/helpers.js';
 import { moveArrayItem } from './utils/dragReorder.js';
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 
@@ -31,7 +31,12 @@ function defaultAppData() {
     bodyWeightLogs: [],
     activeWorkout: null,
     currentView: 'calendar',
-    selectedDate: formatDate(new Date())
+    selectedDate: formatDate(new Date()),
+    // Only a genuinely fresh install starts unonboarded — any state loaded
+    // from existing local/cloud data below defaults this to true instead,
+    // so returning users are never suddenly interrupted by the wizard.
+    onboardingCompleted: false,
+    userProfile: null
   };
 }
 
@@ -72,7 +77,12 @@ function loadLocalData() {
         bodyWeightLogs: parsed.bodyWeightLogs || [],
         activeWorkout: parsed.activeWorkout || null,
         currentView: parsed.currentView || 'calendar',
-        selectedDate: parsed.selectedDate || formatDate(new Date())
+        selectedDate: parsed.selectedDate || formatDate(new Date()),
+        // Existing saved data predates the onboarding wizard — treat it as
+        // already-onboarded unless it explicitly says otherwise (e.g. the
+        // user chose "Retake Setup").
+        onboardingCompleted: parsed.onboardingCompleted !== undefined ? parsed.onboardingCompleted : true,
+        userProfile: parsed.userProfile || null
       };
     }
   } catch (err) {
@@ -182,7 +192,9 @@ class AppState {
         bodyWeightLogs: cloud.bodyWeightLogs || [],
         activeWorkout: cloud.activeWorkout || null,
         currentView: cloud.currentView || 'calendar',
-        selectedDate: cloud.selectedDate || formatDate(new Date())
+        selectedDate: cloud.selectedDate || formatDate(new Date()),
+        onboardingCompleted: cloud.onboardingCompleted !== undefined ? cloud.onboardingCompleted : true,
+        userProfile: cloud.userProfile || null
       };
       this.saveLocal();
       // Push any built-in-routine correction straight back up too, so the cloud
@@ -203,6 +215,77 @@ class AppState {
 
   needsPasswordReset() {
     return this.passwordRecovery;
+  }
+
+  needsOnboarding() {
+    return !this.state.onboardingCompleted;
+  }
+
+  // Lets a user go through setup again from Stats — e.g. their training days
+  // changed, or they skipped it originally and want the recommendation now.
+  retakeOnboarding() {
+    this.state.onboardingCompleted = false;
+    this.notify();
+  }
+
+  skipOnboarding() {
+    this.state.onboardingCompleted = true;
+    this.notify();
+  }
+
+  // Applies the onboarding wizard's answers: recommends + schedules a
+  // built-in program across the chosen weekdays, computes a BMR-based
+  // calorie target for the chosen goal, and logs the entered weight as the
+  // first Body Weight chart entry. Returns the program that was assigned,
+  // so the UI can show a confirmation summary.
+  completeOnboarding({ sex, age, heightCm, weightKg, goal, intensity, equipment, trainingDays, programStartDate }) {
+    const daysPerWeek = trainingDays.length;
+    const program = pickProgram(PROGRAMS, daysPerWeek, equipment);
+
+    // Assign the program's days (in order) to the chosen weekdays in
+    // Sun->Sat order. If the program needs fewer days than were picked, the
+    // extra picked days stay rest days; if it needs more, only as many as
+    // were picked get assigned — pickProgram already tries to avoid that
+    // mismatch, but this stays correct either way.
+    const sortedDays = [...trainingDays].sort((a, b) => a - b);
+    const schedule = {};
+    for (let d = 0; d < 7; d++) schedule[d] = null;
+    sortedDays.forEach((day, i) => {
+      if (i < program.routineIds.length) schedule[day] = program.routineIds[i];
+    });
+    this.state.schedule = schedule;
+
+    const bmr = calculateBMR({ gender: sex, age, weightKg, heightCm });
+    const tdee = calculateTDEE(bmr, daysPerWeek);
+    const calorieTarget = calculateCalorieTarget(tdee, goal, intensity);
+
+    this.state.userProfile = {
+      sex: sex || null,
+      age: age || null,
+      heightCm: heightCm || null,
+      weightKg: weightKg || null,
+      goal: goal || null,
+      intensity: goal === 'maintain' ? null : (intensity || null),
+      trainingDaysPerWeek: daysPerWeek,
+      equipment,
+      programId: program.id,
+      programStartDate: programStartDate || null,
+      bmr,
+      tdee,
+      calorieTarget: calorieTarget?.target ?? null,
+      calorieTargetClamped: calorieTarget?.clamped ?? false
+    };
+
+    if (weightKg) {
+      this.state.bodyWeightLogs = this.state.bodyWeightLogs.filter(w => w.date !== formatDate(new Date()));
+      this.state.bodyWeightLogs.push({ id: 'bw_' + Date.now(), date: formatDate(new Date()), weightKg });
+    }
+
+    this.state.onboardingCompleted = true;
+    this.state.currentView = 'calendar';
+    this.notify();
+
+    return program;
   }
 
   // Called once the user has successfully set a new password from the recovery screen.
@@ -246,7 +329,9 @@ class AppState {
         bodyWeightLogs: this.state.bodyWeightLogs,
         activeWorkout: this.state.activeWorkout,
         currentView: this.state.currentView,
-        selectedDate: this.state.selectedDate
+        selectedDate: this.state.selectedDate,
+        onboardingCompleted: this.state.onboardingCompleted,
+        userProfile: this.state.userProfile
       }));
     } catch (err) {
       console.error('Failed to save state to localStorage:', err);
@@ -283,7 +368,9 @@ class AppState {
         bodyWeightLogs: this.state.bodyWeightLogs,
         activeWorkout: this.state.activeWorkout,
         currentView: this.state.currentView,
-        selectedDate: this.state.selectedDate
+        selectedDate: this.state.selectedDate,
+        onboardingCompleted: this.state.onboardingCompleted,
+        userProfile: this.state.userProfile
       }
     });
     if (error) console.error('Failed to sync state to Supabase:', error);

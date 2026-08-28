@@ -6,6 +6,7 @@ import { renderAnalyticsView } from './components/AnalyticsView.js';
 import { renderAuthView } from './components/AuthView.js';
 import { renderUpdatePasswordView } from './components/UpdatePasswordView.js';
 import { renderScheduleEditorView } from './components/ScheduleEditorView.js';
+import { renderOnboardingView } from './components/OnboardingView.js';
 
 export async function initApp() {
   const appRoot = document.getElementById('app');
@@ -28,6 +29,11 @@ export async function initApp() {
 
     if (appState.needsAuth()) {
       renderAuthView(appRoot, { onLocalOnly: () => appState.enableLocalOnly() });
+      return;
+    }
+
+    if (appState.needsOnboarding()) {
+      renderOnboardingView(appRoot);
       return;
     }
 
