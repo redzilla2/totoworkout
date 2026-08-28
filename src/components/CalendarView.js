@@ -460,6 +460,13 @@ function formatDateString(d) {
   return `${y}-${m}-${day}`;
 }
 
+function renderQuickLogExerciseOptions(list) {
+  if (list.length === 0) {
+    return `<option value="" disabled selected>No exercises match your search</option>`;
+  }
+  return list.map(ex => `<option value="${ex.id}">${ex.name} (${ex.category})</option>`).join('');
+}
+
 function openQuickLogModal(dateStr) {
   const exercises = appState.getState().exercises || [];
   const overlay = document.createElement('div');
@@ -489,15 +496,27 @@ function openQuickLogModal(dateStr) {
         </div>
 
         <div class="form-group">
+          <label class="form-label">Select Exercise to Include</label>
+          <input type="text" class="form-input" id="log-exercise-search" placeholder="🔍 Search exercises by name or muscle group..." style="margin-bottom: 8px;">
+          <select class="form-select" id="log-exercise-select" size="6" style="height: auto;">
+            ${renderQuickLogExerciseOptions(exercises)}
+          </select>
+        </div>
+
+        <div id="log-strength-fields" class="form-group">
           <label class="form-label">Default Set Weight (kg)</label>
           <input type="number" class="form-input" id="log-default-weight" value="20" step="0.5" min="0">
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Select Exercise to Include</label>
-          <select class="form-select" id="log-exercise-select">
-            ${exercises.map(ex => `<option value="${ex.name}">${ex.name} (${ex.category})</option>`).join('')}
-          </select>
+        <div id="log-cardio-fields" style="display: none; gap: 8px; margin-bottom: 16px;">
+          <div style="flex: 1;">
+            <label class="form-label">Minutes</label>
+            <input type="number" class="form-input" id="log-minutes" value="20" min="1">
+          </div>
+          <div style="flex: 1;">
+            <label class="form-label">Calories</label>
+            <input type="number" class="form-input" id="log-calories" value="150" min="0">
+          </div>
         </div>
 
         <div class="form-group">
@@ -512,6 +531,40 @@ function openQuickLogModal(dateStr) {
 
   document.body.appendChild(overlay);
 
+  // Toggles between the Default Weight field and the Minutes/Calories fields
+  // based on the currently-selected exercise's category — cardio is logged
+  // differently everywhere else in the app, this modal just hadn't caught up.
+  function updateLogFieldsVisibility() {
+    const select = overlay.querySelector('#log-exercise-select');
+    const exMeta = exercises.find(e => e.id === select?.value);
+    const cardio = isCardioCategory(exMeta?.category);
+    const strengthFields = overlay.querySelector('#log-strength-fields');
+    const cardioFields = overlay.querySelector('#log-cardio-fields');
+    if (strengthFields) strengthFields.style.display = cardio ? 'none' : 'block';
+    if (cardioFields) cardioFields.style.display = cardio ? 'flex' : 'none';
+  }
+  updateLogFieldsVisibility();
+
+  overlay.querySelector('#log-exercise-select')?.addEventListener('change', () => {
+    updateLogFieldsVisibility();
+    // Nudge the category to match, so the log's badge/color isn't left on
+    // "Full Body" for what's actually a cardio session — still overridable.
+    const select = overlay.querySelector('#log-exercise-select');
+    const exMeta = exercises.find(e => e.id === select.value);
+    if (isCardioCategory(exMeta?.category)) {
+      overlay.querySelector('#log-category').value = 'Cardio';
+    }
+  });
+
+  overlay.querySelector('#log-exercise-search')?.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const filtered = exercises.filter(ex =>
+      ex.name.toLowerCase().includes(query) || ex.category.toLowerCase().includes(query)
+    );
+    overlay.querySelector('#log-exercise-select').innerHTML = renderQuickLogExerciseOptions(filtered);
+    updateLogFieldsVisibility();
+  });
+
   overlay.querySelector('#close-modal-btn').addEventListener('click', () => {
     document.body.removeChild(overlay);
   });
@@ -520,14 +573,44 @@ function openQuickLogModal(dateStr) {
     e.preventDefault();
     const name = overlay.querySelector('#log-name').value;
     const category = overlay.querySelector('#log-category').value;
-    const defaultWeight = parseFloat(overlay.querySelector('#log-default-weight').value || 20);
-    const selectedExName = overlay.querySelector('#log-exercise-select').value;
     const notes = overlay.querySelector('#log-notes').value;
+    const exerciseId = overlay.querySelector('#log-exercise-select').value;
+    const exMeta = exercises.find(e => e.id === exerciseId);
+    const cardio = isCardioCategory(exMeta?.category);
 
     const colors = {
       'Push / Upper': '#3b82f6', 'Legs / Core': '#10b981', 'Arms': '#8b5cf6',
       'Full Body': '#f59e0b', 'Cardio': '#06b6d4'
     };
+
+    let exerciseEntry, totalVolume, totalCalories, durationMinutes;
+
+    if (cardio) {
+      const minutes = parseInt(overlay.querySelector('#log-minutes').value || '20', 10);
+      const calories = parseInt(overlay.querySelector('#log-calories').value || '0', 10);
+      exerciseEntry = {
+        name: exMeta ? exMeta.name : 'Cardio',
+        category: 'Cardio',
+        sets: [{ setNum: 1, minutes, calories, completed: true }]
+      };
+      totalVolume = 0;
+      totalCalories = calories;
+      durationMinutes = minutes;
+    } else {
+      const defaultWeight = parseFloat(overlay.querySelector('#log-default-weight').value || 20);
+      exerciseEntry = {
+        name: exMeta ? exMeta.name : 'Exercise',
+        category: exMeta ? exMeta.category : category,
+        sets: [
+          { reps: 10, weight: defaultWeight, completed: true },
+          { reps: 10, weight: defaultWeight, completed: true },
+          { reps: 10, weight: defaultWeight, completed: true }
+        ]
+      };
+      totalVolume = defaultWeight * 30;
+      totalCalories = 0;
+      durationMinutes = 45;
+    }
 
     appState.addWorkoutLog({
       id: 'log_' + Date.now(),
@@ -535,22 +618,13 @@ function openQuickLogModal(dateStr) {
       name: name,
       category: category,
       color: colors[category] || '#6366f1',
-      icon: '🏋️',
-      durationMinutes: 45,
-      totalVolume: defaultWeight * 30,
+      icon: cardio ? '🏃' : '🏋️',
+      durationMinutes: durationMinutes,
+      totalVolume: totalVolume,
+      totalCalories: totalCalories,
       notes: notes,
       userLogged: true, // Flag for user completion
-      exercises: [
-        {
-          name: selectedExName,
-          category: category,
-          sets: [
-            { reps: 10, weight: defaultWeight, completed: true },
-            { reps: 10, weight: defaultWeight, completed: true },
-            { reps: 10, weight: defaultWeight, completed: true }
-          ]
-        }
-      ]
+      exercises: [exerciseEntry]
     });
 
     document.body.removeChild(overlay);
