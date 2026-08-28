@@ -27,7 +27,12 @@ function defaultAppData() {
   return {
     routines: DEFAULT_ROUTINES,
     schedule: defaultSchedule(),
-    history: generateSampleHistory(),
+    // A brand-new install/account starts with a genuinely empty calendar —
+    // generateSampleHistory() is only ever used by the explicit admin
+    // "Restore Demo Sample History" action (resetDemoData below), never as
+    // a default, so a new user never sees fake demo workouts mixed in with
+    // their real ones once they start logging.
+    history: [],
     bodyWeightLogs: [],
     activeWorkout: null,
     currentView: 'calendar',
@@ -73,7 +78,9 @@ function loadLocalData() {
       return {
         routines: syncBuiltInRoutineMetadata(parsed.routines) || DEFAULT_ROUTINES,
         schedule: parsed.schedule || defaultSchedule(),
-        history: parsed.history || generateSampleHistory(),
+        // Falls back to empty, not fake demo data, if this saved record is
+        // somehow missing its history — same reasoning as defaultAppData().
+        history: parsed.history || [],
         bodyWeightLogs: parsed.bodyWeightLogs || [],
         activeWorkout: parsed.activeWorkout || null,
         currentView: parsed.currentView || 'calendar',
@@ -188,7 +195,9 @@ class AppState {
         exercises: DEFAULT_EXERCISES,
         routines: syncBuiltInRoutineMetadata(cloud.routines) || DEFAULT_ROUTINES,
         schedule: cloud.schedule || defaultSchedule(),
-        history: cloud.history || generateSampleHistory(),
+        // Same reasoning as loadLocalData() — an empty fallback, not fake
+        // demo data, if this cloud record is somehow missing its history.
+        history: cloud.history || [],
         bodyWeightLogs: cloud.bodyWeightLogs || [],
         activeWorkout: cloud.activeWorkout || null,
         currentView: cloud.currentView || 'calendar',
