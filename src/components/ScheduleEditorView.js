@@ -1,5 +1,5 @@
 import { appState } from '../state.js';
-import { DAY_NAMES, DAY_SHORT_NAMES } from '../utils/helpers.js';
+import { DAY_NAMES, DAY_SHORT_NAMES, isCardioCategory } from '../utils/helpers.js';
 
 // Module-level (not component-local) so the selected day survives the full
 // re-renders that fire every time appState.notify() runs — same pattern
@@ -53,6 +53,7 @@ export function renderScheduleEditorView(container) {
           ${assignedRoutine.exercises.length > 0 ? assignedRoutine.exercises.map((exItem, idx) => {
             const exMeta = exercises.find(e => e.id === exItem.exerciseId);
             const exName = exMeta ? exMeta.name : exItem.exerciseId;
+            const cardio = isCardioCategory(exMeta?.category);
             const targetHint = exItem.repRange
               ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Target: ${exItem.repRange === 'triset' ? 'triset' : `${exItem.repRange} reps`}</div>`
               : '';
@@ -60,21 +61,32 @@ export function renderScheduleEditorView(container) {
               <div style="background: rgba(15, 23, 42, 0.6); padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                   <div>
-                    <div style="font-weight: 700; font-size: 0.9rem;">${exName}</div>
+                    <div style="font-weight: 700; font-size: 0.9rem;">${cardio ? '🏃' : ''} ${exName}</div>
                     ${targetHint}
                   </div>
                   <button class="icon-btn remove-exercise-btn" data-idx="${idx}" title="Remove" style="width: 28px; height: 28px; font-size: 12px; color: var(--accent-rose);">🗑️</button>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem;">
-                  <div style="display: flex; align-items: center; gap: 4px;">
-                    <input type="number" class="form-input exercise-sets-input" data-idx="${idx}" value="${exItem.defaultSets || 3}" min="1" style="width: 54px; padding: 4px 6px; font-size: 0.82rem; text-align: center;">
-                    <span style="color: var(--text-muted);">sets</span>
-                  </div>
-                  <span style="color: var(--text-muted);">×</span>
-                  <div style="display: flex; align-items: center; gap: 4px;">
-                    <input type="number" class="form-input exercise-reps-input" data-idx="${idx}" value="${exItem.defaultReps || 10}" min="1" style="width: 54px; padding: 4px 6px; font-size: 0.82rem; text-align: center;">
-                    <span style="color: var(--text-muted);">reps</span>
-                  </div>
+                  ${cardio ? `
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <input type="number" class="form-input exercise-minutes-input" data-idx="${idx}" value="${exItem.defaultMinutes || 20}" min="1" style="width: 54px; padding: 4px 6px; font-size: 0.82rem; text-align: center;">
+                      <span style="color: var(--text-muted);">min</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <input type="number" class="form-input exercise-calories-input" data-idx="${idx}" value="${exItem.defaultCalories || 150}" min="0" style="width: 54px; padding: 4px 6px; font-size: 0.82rem; text-align: center;">
+                      <span style="color: var(--text-muted);">cal</span>
+                    </div>
+                  ` : `
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <input type="number" class="form-input exercise-sets-input" data-idx="${idx}" value="${exItem.defaultSets || 3}" min="1" style="width: 54px; padding: 4px 6px; font-size: 0.82rem; text-align: center;">
+                      <span style="color: var(--text-muted);">sets</span>
+                    </div>
+                    <span style="color: var(--text-muted);">×</span>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <input type="number" class="form-input exercise-reps-input" data-idx="${idx}" value="${exItem.defaultReps || 10}" min="1" style="width: 54px; padding: 4px 6px; font-size: 0.82rem; text-align: center;">
+                      <span style="color: var(--text-muted);">reps</span>
+                    </div>
+                  `}
                 </div>
               </div>
             `;
@@ -101,7 +113,7 @@ export function renderScheduleEditorView(container) {
           </select>
         </div>
 
-        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+        <div id="new-exercise-strength-fields" style="display: flex; gap: 8px; margin-bottom: 12px;">
           <div style="flex: 1;">
             <label class="form-label">Sets</label>
             <input type="number" class="form-input" id="new-exercise-sets" value="3" min="1">
@@ -109,6 +121,17 @@ export function renderScheduleEditorView(container) {
           <div style="flex: 1;">
             <label class="form-label">Reps</label>
             <input type="number" class="form-input" id="new-exercise-reps" value="10" min="1">
+          </div>
+        </div>
+
+        <div id="new-exercise-cardio-fields" style="display: none; gap: 8px; margin-bottom: 12px;">
+          <div style="flex: 1;">
+            <label class="form-label">Minutes</label>
+            <input type="number" class="form-input" id="new-exercise-minutes" value="20" min="1">
+          </div>
+          <div style="flex: 1;">
+            <label class="form-label">Calories</label>
+            <input type="number" class="form-input" id="new-exercise-calories" value="150" min="0">
           </div>
         </div>
 
@@ -155,31 +178,77 @@ export function renderScheduleEditorView(container) {
     });
   });
 
+  container.querySelectorAll('.exercise-minutes-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const idx = parseInt(input.getAttribute('data-idx'), 10);
+      const minutes = parseInt(input.value || '1', 10);
+      if (assignedRoutine) appState.updateRoutineExercise(assignedRoutine.id, idx, { defaultMinutes: minutes || 1 });
+    });
+  });
+
+  container.querySelectorAll('.exercise-calories-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const idx = parseInt(input.getAttribute('data-idx'), 10);
+      const calories = parseInt(input.value || '0', 10);
+      if (assignedRoutine) appState.updateRoutineExercise(assignedRoutine.id, idx, { defaultCalories: calories || 0 });
+    });
+  });
+
+  // Toggles which "+ ADD EXERCISE" field group is visible based on the
+  // currently-selected exercise's category.
+  function updateAddExerciseFieldsVisibility() {
+    const select = container.querySelector('#new-exercise-select');
+    const exMeta = exercises.find(e => e.id === select?.value);
+    const cardio = isCardioCategory(exMeta?.category);
+    const strengthFields = container.querySelector('#new-exercise-strength-fields');
+    const cardioFields = container.querySelector('#new-exercise-cardio-fields');
+    if (strengthFields) strengthFields.style.display = cardio ? 'none' : 'flex';
+    if (cardioFields) cardioFields.style.display = cardio ? 'flex' : 'none';
+  }
+  updateAddExerciseFieldsVisibility();
+
+  container.querySelector('#new-exercise-select')?.addEventListener('change', updateAddExerciseFieldsVisibility);
+
   container.querySelector('#new-exercise-search')?.addEventListener('input', (e) => {
     const query = e.target.value.toLowerCase().trim();
     const filtered = exercises.filter(ex =>
       ex.name.toLowerCase().includes(query) || ex.category.toLowerCase().includes(query)
     );
     container.querySelector('#new-exercise-select').innerHTML = renderExerciseOptions(filtered);
+    updateAddExerciseFieldsVisibility();
   });
 
   container.querySelector('#add-exercise-btn')?.addEventListener('click', () => {
     const exerciseId = container.querySelector('#new-exercise-select').value;
-    const sets = parseInt(container.querySelector('#new-exercise-sets').value || '3', 10);
-    const reps = parseInt(container.querySelector('#new-exercise-reps').value || '10', 10);
     if (!exerciseId) return;
+
+    const exMeta = exercises.find(e => e.id === exerciseId);
+    const cardio = isCardioCategory(exMeta?.category);
 
     let targetRoutine = assignedRoutine;
     if (!targetRoutine) {
       targetRoutine = appState.createRoutineForDay(selectedDay, `${DAY_NAMES[selectedDay]} Custom`);
     }
 
-    appState.addExerciseToRoutine(targetRoutine.id, {
-      exerciseId,
-      defaultSets: sets || 3,
-      defaultReps: reps || 10,
-      defaultWeight: 0
-    });
+    if (cardio) {
+      const minutes = parseInt(container.querySelector('#new-exercise-minutes').value || '20', 10);
+      const calories = parseInt(container.querySelector('#new-exercise-calories').value || '150', 10);
+      appState.addExerciseToRoutine(targetRoutine.id, {
+        exerciseId,
+        defaultSets: 1,
+        defaultMinutes: minutes || 20,
+        defaultCalories: calories || 0
+      });
+    } else {
+      const sets = parseInt(container.querySelector('#new-exercise-sets').value || '3', 10);
+      const reps = parseInt(container.querySelector('#new-exercise-reps').value || '10', 10);
+      appState.addExerciseToRoutine(targetRoutine.id, {
+        exerciseId,
+        defaultSets: sets || 3,
+        defaultReps: reps || 10,
+        defaultWeight: 0
+      });
+    }
   });
 }
 

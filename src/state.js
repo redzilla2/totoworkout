@@ -1,7 +1,7 @@
 import { DEFAULT_EXERCISES } from './data/exercises.js';
 import { DEFAULT_ROUTINES } from './data/defaultRoutines.js';
 import { generateSampleHistory } from './data/sampleHistory.js';
-import { formatDate } from './utils/helpers.js';
+import { formatDate, isCardioCategory } from './utils/helpers.js';
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 
 const STORAGE_KEY = 'totoworkouts_app_state_v4'; // Version bump for streak flag sync
@@ -308,16 +308,31 @@ class AppState {
       userLogged: true,
       exercises: routine.exercises.map(exItem => {
         const exMeta = this.state.exercises.find(e => e.id === exItem.exerciseId) || { name: exItem.exerciseId, category: routine.category };
-        const setsCount = exItem.defaultSets || 3;
-        const sets = [];
-        for (let i = 0; i < setsCount; i++) {
-          sets.push({
-            setNum: i + 1,
-            reps: exItem.defaultReps || 10,
-            weight: exItem.defaultWeight || 0,
+        const cardio = isCardioCategory(exMeta.category);
+
+        let sets;
+        if (cardio) {
+          // Cardio is logged as a single minutes/calories block, not multiple
+          // sets of reps/weight.
+          sets = [{
+            setNum: 1,
+            minutes: exItem.defaultMinutes || 20,
+            calories: exItem.defaultCalories || 150,
             completed: false
-          });
+          }];
+        } else {
+          const setsCount = exItem.defaultSets || 3;
+          sets = [];
+          for (let i = 0; i < setsCount; i++) {
+            sets.push({
+              setNum: i + 1,
+              reps: exItem.defaultReps || 10,
+              weight: exItem.defaultWeight || 0,
+              completed: false
+            });
+          }
         }
+
         return {
           name: exMeta.name,
           category: exMeta.category || 'General',
@@ -350,10 +365,16 @@ class AppState {
     const durationMinutes = Math.max(1, Math.round((endTime - session.startTime) / 60000));
 
     let totalVolume = 0;
+    let totalCalories = 0;
     session.exercises.forEach(ex => {
+      const cardio = isCardioCategory(ex.category);
       ex.sets.forEach(s => {
         if (s.completed) {
-          totalVolume += (s.reps * (s.weight || 1));
+          if (cardio) {
+            totalCalories += (s.calories || 0);
+          } else {
+            totalVolume += (s.reps * (s.weight || 1));
+          }
         }
       });
     });
@@ -367,6 +388,7 @@ class AppState {
       icon: session.icon,
       durationMinutes: durationMinutes,
       totalVolume: totalVolume,
+      totalCalories: totalCalories,
       notes: session.notes || '',
       userLogged: true, // Flag for user completion
       exercises: session.exercises
