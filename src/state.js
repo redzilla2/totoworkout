@@ -223,6 +223,9 @@ class AppState {
 
   // Lets a user go through setup again from Stats — e.g. their training days
   // changed, or they skipped it originally and want the recommendation now.
+  // Only flips the flag: logged workouts (state.history), body weight logs,
+  // and any custom routines are untouched here and in completeOnboarding()
+  // below — retaking setup must never cost a user their tracked history.
   retakeOnboarding() {
     this.state.onboardingCompleted = false;
     this.notify();
@@ -238,6 +241,10 @@ class AppState {
   // calorie target for the chosen goal, and logs the entered weight as the
   // first Body Weight chart entry. Returns the program that was assigned,
   // so the UI can show a confirmation summary.
+  // Deliberately only ever assigns to schedule/userProfile/bodyWeightLogs/
+  // onboardingCompleted/currentView below — never state.history or
+  // state.routines — so re-running this from "Retake Setup" can't wipe a
+  // user's logged workouts or custom routines, only the weekly schedule.
   completeOnboarding({ sex, age, heightCm, weightKg, goal, intensity, equipment, trainingDays, programStartDate }) {
     const daysPerWeek = trainingDays.length;
     const program = pickProgram(PROGRAMS, daysPerWeek, equipment);
