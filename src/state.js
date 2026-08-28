@@ -309,6 +309,10 @@ class AppState {
       category: routine.category || 'Custom',
       color: routine.color || '#6366f1',
       icon: routine.icon || '🏋️',
+      // Tags the eventual log with which scheduled routine it came from, so
+      // logging something else (a manual cardio session, an ad-hoc lift) on
+      // the same day doesn't make the calendar think this routine is done.
+      routineId: routine.id || null,
       notes: '',
       userLogged: true,
       exercises: routine.exercises.map(exItem => {
@@ -391,6 +395,7 @@ class AppState {
       category: session.category,
       color: session.color,
       icon: session.icon,
+      routineId: session.routineId || null,
       durationMinutes: durationMinutes,
       totalVolume: totalVolume,
       totalCalories: totalCalories,

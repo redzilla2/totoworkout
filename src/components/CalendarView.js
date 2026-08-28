@@ -25,7 +25,13 @@ export function renderCalendarView(container) {
   const selectedDateWorkouts = state.history.filter(h => h.date === selectedDate && h.userLogged);
   const streak = calculateStreak(state.history);
   const totalVol = calculateTotalVolume(state.history);
-  const scheduledRoutine = selectedDateWorkouts.length === 0 ? getScheduledRoutine(state, selectedDate) : null;
+  // The scheduled routine only counts as "done" once *it specifically* has
+  // been logged (matched by routineId) — logging something unrelated (a
+  // manual cardio session, an ad-hoc lift) on the same day shouldn't make
+  // the programmed session disappear.
+  const scheduledRoutineForDay = getScheduledRoutine(state, selectedDate);
+  const scheduledRoutineDone = scheduledRoutineForDay && selectedDateWorkouts.some(w => w.routineId === scheduledRoutineForDay.id);
+  const scheduledRoutine = scheduledRoutineForDay && !scheduledRoutineDone ? scheduledRoutineForDay : null;
 
   container.innerHTML = `
     <!-- Stats Header Bar -->
@@ -82,8 +88,16 @@ export function renderCalendarView(container) {
         </button>
       </div>
 
+      ${selectedDateWorkouts.length === 0 && !scheduledRoutine ? `
+        <div style="text-align: center; padding: 24px 10px; color: var(--text-muted);">
+          <div style="font-size: 32px; margin-bottom: 8px;">🛌</div>
+          <div style="font-weight: 600; font-size: 0.95rem;">Rest Day / Empty Log</div>
+          <div style="font-size: 0.8rem; margin-top: 4px;">Tap "+ Log Session" to schedule or record a workout for this date.</div>
+        </div>
+      ` : ''}
+
       ${selectedDateWorkouts.length > 0 ? `
-        <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 16px; ${scheduledRoutine ? 'margin-bottom: 16px;' : ''}">
           ${selectedDateWorkouts.map(w => `
             <div class="workout-card-editor" data-id="${w.id}" style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-glass); border-left: 4px solid ${w.color || '#6366f1'}; border-radius: var(--radius-md); padding: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
@@ -174,7 +188,9 @@ export function renderCalendarView(container) {
             </div>
           `).join('')}
         </div>
-      ` : scheduledRoutine ? `
+      ` : ''}
+
+      ${scheduledRoutine ? `
         <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-glass); border-left: 4px solid ${scheduledRoutine.color || '#6366f1'}; border-radius: var(--radius-md); padding: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
             <div>
@@ -204,13 +220,7 @@ export function renderCalendarView(container) {
             ▶ Start This Workout
           </button>
         </div>
-      ` : `
-        <div style="text-align: center; padding: 24px 10px; color: var(--text-muted);">
-          <div style="font-size: 32px; margin-bottom: 8px;">🛌</div>
-          <div style="font-weight: 600; font-size: 0.95rem;">Rest Day / Empty Log</div>
-          <div style="font-size: 0.8rem; margin-top: 4px;">Tap "+ Log Session" to schedule or record a workout for this date.</div>
-        </div>
-      `}
+      ` : ''}
     </div>
   `;
 
@@ -390,20 +400,22 @@ function renderCalendarDays(year, month, firstDayIndex, daysInMonth, prevDaysInM
     historyMap[item.date].push(item);
   });
 
-  // Renders either the logged workout dots for a date, or — if nothing's been
-  // logged yet — a hollow dot in the scheduled routine's color, so the weekly
-  // schedule is visible on the calendar before you've actually logged anything.
+  // Renders a filled dot per logged workout for a date, PLUS — if the day's
+  // scheduled routine specifically hasn't been logged yet — a hollow dot for
+  // it too, so logging something unrelated (a manual cardio session) doesn't
+  // make the programmed session vanish from the calendar.
   function renderDots(dateStr) {
     const logs = historyMap[dateStr] || [];
-    if (logs.length > 0) {
-      return logs.map(l => `<div class="workout-dot" style="background: ${l.color || '#6366f1'}; color: ${l.color || '#6366f1'};"></div>`).join('');
-    }
+    let dots = logs.map(l => `<div class="workout-dot" style="background: ${l.color || '#6366f1'}; color: ${l.color || '#6366f1'};"></div>`).join('');
+
     const scheduled = getScheduledRoutine(state, dateStr);
-    if (scheduled) {
+    const scheduledDone = scheduled && logs.some(l => l.routineId === scheduled.id);
+    if (scheduled && !scheduledDone) {
       const c = scheduled.color || '#6366f1';
-      return `<div class="workout-dot" style="background: transparent; border: 1.5px solid ${c}; color: ${c};"></div>`;
+      dots += `<div class="workout-dot" style="background: transparent; border: 1.5px solid ${c}; color: ${c};"></div>`;
     }
-    return '';
+
+    return dots;
   }
 
   // Prev month padding
