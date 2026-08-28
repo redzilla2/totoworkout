@@ -494,6 +494,27 @@ body {
   box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
 }
 
+/* Drag-to-reorder handle (see src/utils/dragReorder.js) */
+.drag-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 6px;
+  touch-action: none; /* stop the browser scrolling the page instead of dispatching pointermove while dragging on touch */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+  color: var(--text-primary);
+}
+
+.dragging {
+  opacity: 0.95;
+}
+
 /* Rest Timer Display */
 .rest-timer-box {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));

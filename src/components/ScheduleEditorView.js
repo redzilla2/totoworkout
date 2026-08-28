@@ -1,5 +1,6 @@
 import { appState } from '../state.js';
 import { DAY_NAMES, DAY_SHORT_NAMES, isCardioCategory } from '../utils/helpers.js';
+import { enableDragReorder } from '../utils/dragReorder.js';
 
 // Module-level (not component-local) so the selected day survives the full
 // re-renders that fire every time appState.notify() runs — same pattern
@@ -58,11 +59,14 @@ export function renderScheduleEditorView(container) {
               ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Target: ${exItem.repRange === 'triset' ? 'triset' : `${exItem.repRange} reps`}</div>`
               : '';
             return `
-              <div style="background: rgba(15, 23, 42, 0.6); padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
+              <div class="exercise-card" style="background: rgba(15, 23, 42, 0.6); padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                  <div>
-                    <div style="font-weight: 700; font-size: 0.9rem;">${cardio ? '🏃' : ''} ${exName}</div>
-                    ${targetHint}
+                  <div style="display: flex; align-items: center; gap: 4px; min-width: 0;">
+                    <span class="drag-handle" title="Drag to reorder">⠿</span>
+                    <div style="min-width: 0;">
+                      <div style="font-weight: 700; font-size: 0.9rem;">${cardio ? '🏃' : ''} ${exName}</div>
+                      ${targetHint}
+                    </div>
                   </div>
                   <button class="icon-btn remove-exercise-btn" data-idx="${idx}" title="Remove" style="width: 28px; height: 28px; font-size: 12px; color: var(--accent-rose);">🗑️</button>
                 </div>
@@ -143,6 +147,18 @@ export function renderScheduleEditorView(container) {
   container.querySelector('#back-to-routines-btn')?.addEventListener('click', () => {
     appState.setView('routines');
   });
+
+  // Drag-to-reorder this day's exercise list.
+  if (assignedRoutine) {
+    enableDragReorder(container, {
+      itemSelector: '.exercise-card',
+      handleSelector: '.drag-handle',
+      onReorder: (fromIndex, toIndex) => {
+        appState.reorderRoutineExercises(assignedRoutine.id, fromIndex, toIndex);
+        renderScheduleEditorView(container);
+      }
+    });
+  }
 
   container.querySelectorAll('.day-pill').forEach(btn => {
     btn.addEventListener('click', () => {
