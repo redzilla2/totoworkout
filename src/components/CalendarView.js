@@ -1,6 +1,16 @@
 import { appState } from '../state.js';
 import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg } from '../utils/helpers.js';
 
+// Logged-workout cards default to a condensed summary (they can otherwise
+// run to hundreds of pixels tall — a full exercise/set editor per card) and
+// expand on demand. Module-level (not component state) so it survives the
+// full re-renders that fire on every appState.notify(), same pattern as
+// CalendarView's other cross-render state (selectedDay/selectedRange
+// elsewhere in this app). Keyed by log id, so each day/card expands
+// independently and the state naturally stays correct as logs are added or
+// removed — a stale id left behind by a deleted log is just inert.
+const expandedLogIds = new Set();
+
 export function renderCalendarView(container) {
   const state = appState.getState();
   const selectedDate = state.selectedDate || new Date().toISOString().split('T')[0];
@@ -98,7 +108,9 @@ export function renderCalendarView(container) {
 
       ${selectedDateWorkouts.length > 0 ? `
         <div style="display: flex; flex-direction: column; gap: 16px; ${scheduledRoutine ? 'margin-bottom: 16px;' : ''}">
-          ${selectedDateWorkouts.map(w => `
+          ${selectedDateWorkouts.map(w => {
+            const expanded = expandedLogIds.has(w.id);
+            return `
             <div class="workout-card-editor" data-id="${w.id}" style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-glass); border-left: 4px solid ${w.color || '#6366f1'}; border-radius: var(--radius-md); padding: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                 <div>
@@ -115,6 +127,11 @@ export function renderCalendarView(container) {
                 ${w.totalCalories ? `<span>🔥 <strong style="color: var(--accent-rose);">${w.totalCalories.toLocaleString()} kcal</strong>${w.caloriesEstimated ? ' <span style="color: var(--text-muted); font-weight: 400;">(est.)</span>' : ''}</span>` : ''}
               </div>
 
+              <button class="toggle-details-btn" data-id="${w.id}" style="width: 100%; padding: 8px; background: rgba(255,255,255,0.04); border: 1px solid var(--border-glass); border-radius: var(--radius-md); color: #a5b4fc; font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.2s ease; ${expanded ? 'margin-bottom: 14px;' : ''}">
+                ${expanded ? `▲ Hide Exercise Details (${(w.exercises || []).length})` : `▼ Show Exercise Details (${(w.exercises || []).length})`}
+              </button>
+
+              ${expanded ? `
               <!-- Editable Exercises & Set Weights Table -->
               <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
                 <div style="font-size: 0.82rem; font-weight: 700; color: #a5b4fc; display: flex; justify-content: space-between; align-items: center;">
@@ -185,8 +202,10 @@ export function renderCalendarView(container) {
               <button class="btn save-weights-btn" data-id="${w.id}" style="margin-top: 14px; padding: 10px; font-size: 0.88rem; background: linear-gradient(135deg, var(--accent-emerald), #059669);">
                 💾 Save Weight Recordings
               </button>
+              ` : ''}
             </div>
-          `).join('')}
+          `;
+          }).join('')}
         </div>
       ` : ''}
 
@@ -246,6 +265,16 @@ export function renderCalendarView(container) {
       if (dateAttr) {
         appState.setSelectedDate(dateAttr);
       }
+    });
+  });
+
+  // Expand/collapse a logged workout's exercise & set details.
+  container.querySelectorAll('.toggle-details-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      if (expandedLogIds.has(id)) expandedLogIds.delete(id);
+      else expandedLogIds.add(id);
+      renderCalendarView(container);
     });
   });
 
