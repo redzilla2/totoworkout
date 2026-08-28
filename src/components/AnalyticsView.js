@@ -153,6 +153,29 @@ export function renderAnalyticsView(container) {
       </div>
     </div>
 
+    <!-- Your Plan (calorie target + re-run the onboarding wizard) -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-title">🎯 Your Plan</div>
+      </div>
+
+      ${state.userProfile && state.userProfile.calorieTarget ? `
+        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-glass); margin-bottom: 12px;">
+          <div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 700;">DAILY CALORIE TARGET</div>
+            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; text-transform: capitalize;">${state.userProfile.goal || 'maintain'}${state.userProfile.intensity ? ' · ' + state.userProfile.intensity : ''}</div>
+          </div>
+          <div style="font-size: 1.5rem; font-weight: 800; color: var(--accent-primary);">${state.userProfile.calorieTarget.toLocaleString()} <span style="font-size: 0.9rem;">kcal</span></div>
+        </div>
+      ` : `
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+          No setup completed yet — run the quick setup to get a recommended program and calorie target.
+        </div>
+      `}
+
+      <button class="btn btn-secondary" id="retake-setup-btn">🎯 ${state.userProfile ? 'Retake Setup' : 'Run Setup'}</button>
+    </div>
+
     <!-- Data Management & Backups (admin-only) -->
     ${isAdmin ? `
       <div class="glass-card">
@@ -178,6 +201,10 @@ export function renderAnalyticsView(container) {
   `;
 
   // Attach Event Handlers
+  container.querySelector('#retake-setup-btn')?.addEventListener('click', () => {
+    appState.retakeOnboarding();
+  });
+
   container.querySelector('#export-json-btn')?.addEventListener('click', () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
     const downloadAnchor = document.createElement('a');

@@ -260,6 +260,13 @@ body {
   box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
 }
 
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 .btn-secondary {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border-glass);

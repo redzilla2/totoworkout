@@ -131,3 +131,92 @@ export function getScheduledRoutine(state, dateStr) {
   if (!routineId) return null;
   return (state.routines || []).find(r => r.id === routineId) || null;
 }
+
+// --- Onboarding: BMR / calorie target and program recommendation ---
+
+/**
+ * Basal Metabolic Rate via the Mifflin-St Jeor equation — the current
+ * standard formula (more accurate than the older Harris-Benedict one).
+ * 'other' averages the male/female offsets, since there's no third
+ * physiological formula — same approach used by most inclusive BMR tools.
+ */
+export function calculateBMR({ gender, age, weightKg, heightCm }) {
+  if (!age || !weightKg || !heightCm) return null;
+  const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
+  const offset = gender === 'male' ? 5 : gender === 'female' ? -161 : -78;
+  return Math.round(base + offset);
+}
+
+/**
+ * BMR alone is "calories to stay alive lying still" — scale it by activity
+ * level to get an actual daily calorie target (TDEE). Derived from training
+ * days/week rather than asking a separate "how active are you" question,
+ * using the standard Harris-Benedict activity multipliers.
+ */
+export function calculateTDEE(bmr, trainingDaysPerWeek) {
+  if (!bmr) return null;
+  let multiplier;
+  if (trainingDaysPerWeek <= 1) multiplier = 1.2;      // sedentary
+  else if (trainingDaysPerWeek <= 3) multiplier = 1.375; // lightly active
+  else if (trainingDaysPerWeek <= 5) multiplier = 1.55;  // moderately active
+  else multiplier = 1.725;                                // very active
+  return Math.round(bmr * multiplier);
+}
+
+// Roughly 7700 kcal per kg of body fat — the commonly-used international
+// approximation (the "3500 kcal per lb" figure most US sources cite, converted).
+const KCAL_PER_KG = 7700;
+
+// Weekly rate of change for each intensity option, in kg — used to turn a
+// goal into a daily calorie adjustment from TDEE.
+const GOAL_INTENSITY_KG_PER_WEEK = { gentle: 0.5, aggressive: 1 };
+
+// Never suggest a target below this, regardless of how aggressive a deficit
+// works out to — a floor most nutrition guidance agrees is the point where
+// "just eat less" needs medical supervision instead of an app's estimate.
+const MIN_SAFE_CALORIE_TARGET = 1200;
+
+/**
+ * Turns a maintenance calorie figure (TDEE) into a daily target for the
+ * chosen goal. `goal` is 'lose' | 'maintain' | 'gain'; `intensity` is
+ * 'gentle' (0.5 kg/week) | 'aggressive' (1 kg/week) — ignored for 'maintain'.
+ * Returns { target, clamped } — `clamped` is true when a deficit would have
+ * gone under the safety floor and was capped instead.
+ */
+export function calculateCalorieTarget(tdee, goal, intensity) {
+  if (!tdee) return null;
+  if (goal !== 'lose' && goal !== 'gain') return { target: tdee, clamped: false };
+
+  const kgPerWeek = GOAL_INTENSITY_KG_PER_WEEK[intensity] || GOAL_INTENSITY_KG_PER_WEEK.gentle;
+  const dailyAdjustment = Math.round((kgPerWeek * KCAL_PER_KG) / 7);
+  const raw = goal === 'lose' ? tdee - dailyAdjustment : tdee + dailyAdjustment;
+
+  if (goal === 'lose' && raw < MIN_SAFE_CALORIE_TARGET) {
+    return { target: MIN_SAFE_CALORIE_TARGET, clamped: true };
+  }
+  return { target: raw, clamped: false };
+}
+
+/**
+ * Picks the built-in program (see data/defaultRoutines.js PROGRAMS) that
+ * best fits the number of days the user can train, preferring an exact
+ * match on daysPerWeek and breaking ties (currently only the two 5-day
+ * programs) by equipment access. Falls back to the closest daysPerWeek
+ * among all programs for counts outside the 3-6 range any program covers.
+ */
+export function pickProgram(programs, daysPerWeek, equipment) {
+  const exact = programs.filter(p => p.daysPerWeek === daysPerWeek);
+  if (exact.length > 0) {
+    return exact.find(p => p.equipment === equipment) || exact[0];
+  }
+  let closest = programs[0];
+  let closestDiff = Math.abs(programs[0].daysPerWeek - daysPerWeek);
+  programs.forEach(p => {
+    const diff = Math.abs(p.daysPerWeek - daysPerWeek);
+    if (diff < closestDiff || (diff === closestDiff && p.equipment === equipment)) {
+      closest = p;
+      closestDiff = diff;
+    }
+  });
+  return closest;
+}
