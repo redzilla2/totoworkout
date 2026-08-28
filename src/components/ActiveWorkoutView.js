@@ -1,5 +1,6 @@
 import { appState } from '../state.js';
 import { RestTimer } from '../utils/timer.js';
+import { isCardioCategory } from '../utils/helpers.js';
 
 let currentRestTimer = null;
 
@@ -52,15 +53,21 @@ export function renderActiveWorkoutView(container) {
   }
 
   let activeVolume = 0;
+  let activeCalories = 0;
   let totalSets = 0;
   let completedSets = 0;
 
   session.exercises.forEach(ex => {
+    const cardio = isCardioCategory(ex.category);
     ex.sets.forEach(s => {
       totalSets++;
       if (s.completed) {
         completedSets++;
-        activeVolume += (s.reps * (s.weight || 1));
+        if (cardio) {
+          activeCalories += (s.calories || 0);
+        } else {
+          activeVolume += (s.reps * (s.weight || 1));
+        }
       }
     });
   });
@@ -93,6 +100,11 @@ export function renderActiveWorkoutView(container) {
           <div style="font-size: 1.1rem; font-weight: 800; color: #f59e0b;">⚡ ${activeVolume.toLocaleString()}</div>
           <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">VOLUME (KG)</div>
         </div>
+        <div style="width: 1px; background: var(--border-glass);"></div>
+        <div>
+          <div style="font-size: 1.1rem; font-weight: 800; color: #fb7185;">🔥 ${activeCalories.toLocaleString()}</div>
+          <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">CALORIES</div>
+        </div>
       </div>
     </div>
 
@@ -102,11 +114,11 @@ export function renderActiveWorkoutView(container) {
         <div class="glass-card" style="margin-bottom: 0; padding: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <div>
-              <div style="font-weight: 700; font-size: 1.05rem;">💪 ${ex.name}</div>
+              <div style="font-weight: 700; font-size: 1.05rem;">${isCardioCategory(ex.category) ? '🏃' : '💪'} ${ex.name}</div>
               ${ex.repRange ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Target: ${ex.repRange === 'triset' ? 'triset' : `${ex.repRange} reps`}</div>` : ''}
             </div>
             <div style="display: flex; align-items: center; gap: 6px;">
-              <button class="btn btn-secondary add-set-btn" data-ex="${exIndex}" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">+ Set</button>
+              ${!isCardioCategory(ex.category) ? `<button class="btn btn-secondary add-set-btn" data-ex="${exIndex}" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">+ Set</button>` : ''}
               <button class="icon-btn delete-exercise-btn" data-ex="${exIndex}" title="Remove exercise from this workout" style="width: 30px; height: 30px; font-size: 12px; color: var(--accent-rose);">🗑️</button>
             </div>
           </div>
@@ -131,29 +143,7 @@ export function renderActiveWorkoutView(container) {
             </div>
           ` : ''}
 
-          <div style="display: grid; grid-template-columns: 28px 1fr 1fr 56px 28px; gap: 8px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding: 0 12px 6px 12px;">
-            <div>SET</div>
-            <div>WEIGHT (KG)</div>
-            <div>REPS</div>
-            <div style="text-align: center;">DONE</div>
-            <div></div>
-          </div>
-
-          ${ex.sets.map((set, setIndex) => `
-            <div class="set-row" style="display: grid; grid-template-columns: 28px 1fr 1fr 56px 28px; gap: 8px;">
-              <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center;">#${setIndex + 1}</div>
-
-              <input type="number" class="form-input weight-input" data-ex="${exIndex}" data-set="${setIndex}" value="${set.weight}" step="0.5" min="0" style="padding: 6px 8px; font-size: 0.85rem;">
-
-              <input type="number" class="form-input reps-input" data-ex="${exIndex}" data-set="${setIndex}" value="${set.reps}" style="padding: 6px 8px; font-size: 0.85rem;">
-
-              <button class="set-check ${set.completed ? 'completed' : ''}" data-ex="${exIndex}" data-set="${setIndex}">
-                ${set.completed ? '✓' : ''}
-              </button>
-
-              <button class="icon-btn delete-set-btn" data-ex="${exIndex}" data-set="${setIndex}" title="Remove set" style="width: 28px; height: 28px; font-size: 11px; padding: 0; color: var(--accent-rose);">🗑️</button>
-            </div>
-          `).join('')}
+          ${renderExerciseLogRows(ex, exIndex)}
         </div>
       `).join('')}
     </div>
@@ -254,6 +244,25 @@ export function renderActiveWorkoutView(container) {
     });
   });
 
+  // Input listeners for cardio minutes & calories updates
+  container.querySelectorAll('.minutes-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const exIdx = parseInt(input.getAttribute('data-ex'), 10);
+      const setIdx = parseInt(input.getAttribute('data-set'), 10);
+      session.exercises[exIdx].sets[setIdx].minutes = parseFloat(input.value || 0);
+      appState.updateActiveWorkout(session);
+    });
+  });
+
+  container.querySelectorAll('.calories-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const exIdx = parseInt(input.getAttribute('data-ex'), 10);
+      const setIdx = parseInt(input.getAttribute('data-set'), 10);
+      session.exercises[exIdx].sets[setIdx].calories = parseFloat(input.value || 0);
+      appState.updateActiveWorkout(session);
+    });
+  });
+
   // Rest time selector per exercise
   container.querySelectorAll('.rest-time-select').forEach(select => {
     select.addEventListener('change', () => {
@@ -319,8 +328,9 @@ export function renderActiveWorkoutView(container) {
     container.querySelector('#session-exercise-select').innerHTML = renderSessionExerciseOptions(filtered);
   });
 
-  // Adds an exercise to *this session only* — 3 sets x 12 reps default, never
-  // touches the underlying routine template.
+  // Adds an exercise to *this session only* — 3 sets x 12 reps default (or a
+  // single 20min/150cal cardio block), never touches the underlying routine
+  // template.
   container.querySelector('#add-session-exercise-btn')?.addEventListener('click', () => {
     const exerciseId = container.querySelector('#session-exercise-select').value;
     if (!exerciseId) return;
@@ -328,16 +338,16 @@ export function renderActiveWorkoutView(container) {
     const exMeta = (state.exercises || []).find(e => e.id === exerciseId);
     if (!exMeta) return;
 
-    const sets = [];
-    for (let i = 0; i < 3; i++) {
-      sets.push({ setNum: i + 1, reps: 12, weight: 0, completed: false });
-    }
+    const cardio = isCardioCategory(exMeta.category);
+    const sets = cardio
+      ? [{ setNum: 1, minutes: 20, calories: 150, completed: false }]
+      : [1, 2, 3].map(i => ({ setNum: i, reps: 12, weight: 0, completed: false }));
 
     session.exercises.push({
       name: exMeta.name,
       category: exMeta.category || 'General',
       repRange: null,
-      restSeconds: 120,
+      restSeconds: exMeta.defaultRest || 60,
       sets: sets
     });
 
@@ -426,6 +436,54 @@ function startRestCountdown(seconds, container) {
   );
 
   currentRestTimer.start(seconds);
+}
+
+// Renders the loggable rows for one exercise card: a single minutes/calories
+// block for cardio (no multi-set concept — you don't do "3 sets" of steady-
+// state cardio), or the usual per-set weight/reps grid for everything else.
+function renderExerciseLogRows(ex, exIndex) {
+  if (isCardioCategory(ex.category)) {
+    const set = ex.sets[0] || { minutes: 20, calories: 150, completed: false };
+    return `
+      <div style="display: grid; grid-template-columns: 1fr 1fr 60px; gap: 8px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding: 0 12px 6px 12px;">
+        <div>MINUTES</div>
+        <div>CALORIES</div>
+        <div style="text-align: center;">DONE</div>
+      </div>
+      <div class="set-row" style="display: grid; grid-template-columns: 1fr 1fr 60px; gap: 8px;">
+        <input type="number" class="form-input minutes-input" data-ex="${exIndex}" data-set="0" value="${set.minutes}" min="0" style="padding: 6px 8px; font-size: 0.85rem;">
+        <input type="number" class="form-input calories-input" data-ex="${exIndex}" data-set="0" value="${set.calories}" min="0" style="padding: 6px 8px; font-size: 0.85rem;">
+        <button class="set-check ${set.completed ? 'completed' : ''}" data-ex="${exIndex}" data-set="0">
+          ${set.completed ? '✓' : ''}
+        </button>
+      </div>
+    `;
+  }
+
+  return `
+    <div style="display: grid; grid-template-columns: 28px 1fr 1fr 56px 28px; gap: 8px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding: 0 12px 6px 12px;">
+      <div>SET</div>
+      <div>WEIGHT (KG)</div>
+      <div>REPS</div>
+      <div style="text-align: center;">DONE</div>
+      <div></div>
+    </div>
+    ${ex.sets.map((set, setIndex) => `
+      <div class="set-row" style="display: grid; grid-template-columns: 28px 1fr 1fr 56px 28px; gap: 8px;">
+        <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center;">#${setIndex + 1}</div>
+
+        <input type="number" class="form-input weight-input" data-ex="${exIndex}" data-set="${setIndex}" value="${set.weight}" step="0.5" min="0" style="padding: 6px 8px; font-size: 0.85rem;">
+
+        <input type="number" class="form-input reps-input" data-ex="${exIndex}" data-set="${setIndex}" value="${set.reps}" style="padding: 6px 8px; font-size: 0.85rem;">
+
+        <button class="set-check ${set.completed ? 'completed' : ''}" data-ex="${exIndex}" data-set="${setIndex}">
+          ${set.completed ? '✓' : ''}
+        </button>
+
+        <button class="icon-btn delete-set-btn" data-ex="${exIndex}" data-set="${setIndex}" title="Remove set" style="width: 28px; height: 28px; font-size: 11px; padding: 0; color: var(--accent-rose);">🗑️</button>
+      </div>
+    `).join('')}
+  `;
 }
 
 // Builds <option>s from 0:00 to 5:00 in 5-second steps, e.g. "1:35".

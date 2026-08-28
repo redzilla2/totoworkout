@@ -68,6 +68,15 @@ export function calculate1RM(weight, reps) {
   return Math.round(weight * (1 + reps / 30));
 }
 
+/**
+ * Cardio exercises are logged by minutes/calories instead of sets of
+ * reps/weight — this is the single switch every view checks to decide which
+ * shape a given exercise's `sets` entries are in.
+ */
+export function isCardioCategory(category) {
+  return category === 'Cardio';
+}
+
 // Indexed to match JS Date#getDay() (0 = Sunday ... 6 = Saturday)
 export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 export const DAY_SHORT_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];

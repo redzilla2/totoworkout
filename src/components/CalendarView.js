@@ -1,5 +1,5 @@
 import { appState } from '../state.js';
-import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine } from '../utils/helpers.js';
+import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine, isCardioCategory } from '../utils/helpers.js';
 
 export function renderCalendarView(container) {
   const state = appState.getState();
@@ -95,9 +95,10 @@ export function renderCalendarView(container) {
                 <button class="icon-btn delete-workout-btn" data-id="${w.id}" title="Delete Log" style="width: 28px; height: 28px; font-size: 12px; color: var(--accent-rose);">🗑️</button>
               </div>
 
-              <div style="font-size: 0.82rem; color: var(--text-secondary); display: flex; gap: 16px; margin-bottom: 12px;">
+              <div style="font-size: 0.82rem; color: var(--text-secondary); display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;">
                 <span>⏱️ ${w.durationMinutes || 45} mins</span>
                 <span>🏋️ <strong class="vol-display" style="color: var(--accent-emerald);">${(w.totalVolume || 0).toLocaleString()} kg total volume</strong></span>
+                ${w.totalCalories ? `<span>🔥 <strong style="color: var(--accent-rose);">${w.totalCalories.toLocaleString()} kcal</strong></span>` : ''}
               </div>
 
               <!-- Editable Exercises & Set Weights Table -->
@@ -107,27 +108,45 @@ export function renderCalendarView(container) {
                   <span style="font-size: 0.72rem; color: var(--text-muted);">Enter weights & reps below</span>
                 </div>
 
-                ${w.exercises && w.exercises.length > 0 ? w.exercises.map((ex, exIdx) => `
+                ${w.exercises && w.exercises.length > 0 ? w.exercises.map((ex, exIdx) => {
+                  const cardio = isCardioCategory(ex.category);
+                  return `
                   <div style="background: rgba(15, 23, 42, 0.6); padding: 10px; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.05);">
                     <div style="font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; color: var(--text-primary);">
-                      💪 ${ex.name}
+                      ${cardio ? '🏃' : '💪'} ${ex.name}
                     </div>
 
                     <div class="sets-rows-container" style="display: flex; flex-direction: column; gap: 6px;">
-                      ${ex.sets ? ex.sets.map((set, setIdx) => `
+                      ${ex.sets ? ex.sets.map((set, setIdx) => cardio ? `
+                        <div class="set-input-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem;">
+                          <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+                            <input type="number" class="form-input ex-minutes-input"
+                              data-wid="${w.id}" data-ex="${exIdx}" data-set="${setIdx}"
+                              value="${set.minutes || 0}" min="0" style="padding: 4px 8px; font-size: 0.82rem; text-align: center;">
+                            <span style="color: var(--text-muted);">min</span>
+                          </div>
+
+                          <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+                            <input type="number" class="form-input ex-calories-input"
+                              data-wid="${w.id}" data-ex="${exIdx}" data-set="${setIdx}"
+                              value="${set.calories || 0}" min="0" style="padding: 4px 8px; font-size: 0.82rem; text-align: center;">
+                            <span style="color: var(--text-muted);">cal</span>
+                          </div>
+                        </div>
+                      ` : `
                         <div class="set-input-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem;">
                           <span style="width: 38px; color: var(--text-muted); font-weight: 700;">Set ${setIdx + 1}:</span>
-                          
+
                           <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
-                            <input type="number" class="form-input ex-weight-input" 
-                              data-wid="${w.id}" data-ex="${exIdx}" data-set="${setIdx}" 
+                            <input type="number" class="form-input ex-weight-input"
+                              data-wid="${w.id}" data-ex="${exIdx}" data-set="${setIdx}"
                               value="${set.weight || 0}" step="0.5" min="0" style="padding: 4px 8px; font-size: 0.82rem; text-align: center;">
                             <span style="color: var(--text-muted);">kg</span>
                           </div>
 
                           <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
-                            <input type="number" class="form-input ex-reps-input" 
-                              data-wid="${w.id}" data-ex="${exIdx}" data-set="${setIdx}" 
+                            <input type="number" class="form-input ex-reps-input"
+                              data-wid="${w.id}" data-ex="${exIdx}" data-set="${setIdx}"
                               value="${set.reps || 10}" min="1" style="padding: 4px 8px; font-size: 0.82rem; text-align: center;">
                             <span style="color: var(--text-muted);">reps</span>
                           </div>
@@ -135,14 +154,17 @@ export function renderCalendarView(container) {
                       `).join('') : ''}
                     </div>
 
-                    <!-- Add Set Button -->
-                    <button class="add-set-btn" 
-                      data-wid="${w.id}" data-ex="${exIdx}"
-                      style="margin-top: 8px; width: 100%; padding: 6px; background: rgba(99,102,241,0.12); border: 1px dashed rgba(99,102,241,0.4); border-radius: var(--radius-md); color: #a5b4fc; font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.2s ease;">
-                      + Add Set
-                    </button>
+                    <!-- Add Set Button (not shown for cardio — it's logged as a single block) -->
+                    ${!cardio ? `
+                      <button class="add-set-btn"
+                        data-wid="${w.id}" data-ex="${exIdx}"
+                        style="margin-top: 8px; width: 100%; padding: 6px; background: rgba(99,102,241,0.12); border: 1px dashed rgba(99,102,241,0.4); border-radius: var(--radius-md); color: #a5b4fc; font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.2s ease;">
+                        + Add Set
+                      </button>
+                    ` : ''}
                   </div>
-                `).join('') : '<div style="font-size: 0.8rem; color: var(--text-muted);">No detailed exercises recorded for this log.</div>'}
+                `;
+                }).join('') : '<div style="font-size: 0.8rem; color: var(--text-muted);">No detailed exercises recorded for this log.</div>'}
               </div>
 
               <!-- Save Weights Button -->
@@ -228,6 +250,7 @@ export function renderCalendarView(container) {
       if (!card) return;
 
       let newTotalVolume = 0;
+      let newTotalCalories = 0;
 
       card.querySelectorAll('.ex-weight-input').forEach(input => {
         const exIdx = parseInt(input.getAttribute('data-ex'), 10);
@@ -249,12 +272,38 @@ export function renderCalendarView(container) {
         }
       });
 
+      card.querySelectorAll('.ex-minutes-input').forEach(input => {
+        const exIdx = parseInt(input.getAttribute('data-ex'), 10);
+        const setIdx = parseInt(input.getAttribute('data-set'), 10);
+        const newMinutes = parseFloat(input.value || 0);
+
+        if (workoutLog.exercises[exIdx] && workoutLog.exercises[exIdx].sets[setIdx]) {
+          workoutLog.exercises[exIdx].sets[setIdx].minutes = newMinutes;
+        }
+      });
+
+      card.querySelectorAll('.ex-calories-input').forEach(input => {
+        const exIdx = parseInt(input.getAttribute('data-ex'), 10);
+        const setIdx = parseInt(input.getAttribute('data-set'), 10);
+        const newCalories = parseFloat(input.value || 0);
+
+        if (workoutLog.exercises[exIdx] && workoutLog.exercises[exIdx].sets[setIdx]) {
+          workoutLog.exercises[exIdx].sets[setIdx].calories = newCalories;
+        }
+      });
+
       workoutLog.exercises.forEach(ex => {
+        const cardio = isCardioCategory(ex.category);
         ex.sets.forEach(s => {
-          newTotalVolume += (s.reps * (s.weight || 1));
+          if (cardio) {
+            newTotalCalories += (s.calories || 0);
+          } else {
+            newTotalVolume += (s.reps * (s.weight || 1));
+          }
         });
       });
       workoutLog.totalVolume = newTotalVolume;
+      workoutLog.totalCalories = newTotalCalories;
       workoutLog.userLogged = true; // Mark as logged for streak increment!
 
       appState.addWorkoutLog(workoutLog);
@@ -411,6 +460,13 @@ function formatDateString(d) {
   return `${y}-${m}-${day}`;
 }
 
+function renderQuickLogExerciseOptions(list) {
+  if (list.length === 0) {
+    return `<option value="" disabled selected>No exercises match your search</option>`;
+  }
+  return list.map(ex => `<option value="${ex.id}">${ex.name} (${ex.category})</option>`).join('');
+}
+
 function openQuickLogModal(dateStr) {
   const exercises = appState.getState().exercises || [];
   const overlay = document.createElement('div');
@@ -440,15 +496,27 @@ function openQuickLogModal(dateStr) {
         </div>
 
         <div class="form-group">
+          <label class="form-label">Select Exercise to Include</label>
+          <input type="text" class="form-input" id="log-exercise-search" placeholder="🔍 Search exercises by name or muscle group..." style="margin-bottom: 8px;">
+          <select class="form-select" id="log-exercise-select" size="6" style="height: auto;">
+            ${renderQuickLogExerciseOptions(exercises)}
+          </select>
+        </div>
+
+        <div id="log-strength-fields" class="form-group">
           <label class="form-label">Default Set Weight (kg)</label>
           <input type="number" class="form-input" id="log-default-weight" value="20" step="0.5" min="0">
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Select Exercise to Include</label>
-          <select class="form-select" id="log-exercise-select">
-            ${exercises.map(ex => `<option value="${ex.name}">${ex.name} (${ex.category})</option>`).join('')}
-          </select>
+        <div id="log-cardio-fields" style="display: none; gap: 8px; margin-bottom: 16px;">
+          <div style="flex: 1;">
+            <label class="form-label">Minutes</label>
+            <input type="number" class="form-input" id="log-minutes" value="20" min="1">
+          </div>
+          <div style="flex: 1;">
+            <label class="form-label">Calories</label>
+            <input type="number" class="form-input" id="log-calories" value="150" min="0">
+          </div>
         </div>
 
         <div class="form-group">
@@ -463,6 +531,40 @@ function openQuickLogModal(dateStr) {
 
   document.body.appendChild(overlay);
 
+  // Toggles between the Default Weight field and the Minutes/Calories fields
+  // based on the currently-selected exercise's category — cardio is logged
+  // differently everywhere else in the app, this modal just hadn't caught up.
+  function updateLogFieldsVisibility() {
+    const select = overlay.querySelector('#log-exercise-select');
+    const exMeta = exercises.find(e => e.id === select?.value);
+    const cardio = isCardioCategory(exMeta?.category);
+    const strengthFields = overlay.querySelector('#log-strength-fields');
+    const cardioFields = overlay.querySelector('#log-cardio-fields');
+    if (strengthFields) strengthFields.style.display = cardio ? 'none' : 'block';
+    if (cardioFields) cardioFields.style.display = cardio ? 'flex' : 'none';
+  }
+  updateLogFieldsVisibility();
+
+  overlay.querySelector('#log-exercise-select')?.addEventListener('change', () => {
+    updateLogFieldsVisibility();
+    // Nudge the category to match, so the log's badge/color isn't left on
+    // "Full Body" for what's actually a cardio session — still overridable.
+    const select = overlay.querySelector('#log-exercise-select');
+    const exMeta = exercises.find(e => e.id === select.value);
+    if (isCardioCategory(exMeta?.category)) {
+      overlay.querySelector('#log-category').value = 'Cardio';
+    }
+  });
+
+  overlay.querySelector('#log-exercise-search')?.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const filtered = exercises.filter(ex =>
+      ex.name.toLowerCase().includes(query) || ex.category.toLowerCase().includes(query)
+    );
+    overlay.querySelector('#log-exercise-select').innerHTML = renderQuickLogExerciseOptions(filtered);
+    updateLogFieldsVisibility();
+  });
+
   overlay.querySelector('#close-modal-btn').addEventListener('click', () => {
     document.body.removeChild(overlay);
   });
@@ -471,14 +573,44 @@ function openQuickLogModal(dateStr) {
     e.preventDefault();
     const name = overlay.querySelector('#log-name').value;
     const category = overlay.querySelector('#log-category').value;
-    const defaultWeight = parseFloat(overlay.querySelector('#log-default-weight').value || 20);
-    const selectedExName = overlay.querySelector('#log-exercise-select').value;
     const notes = overlay.querySelector('#log-notes').value;
+    const exerciseId = overlay.querySelector('#log-exercise-select').value;
+    const exMeta = exercises.find(e => e.id === exerciseId);
+    const cardio = isCardioCategory(exMeta?.category);
 
     const colors = {
       'Push / Upper': '#3b82f6', 'Legs / Core': '#10b981', 'Arms': '#8b5cf6',
       'Full Body': '#f59e0b', 'Cardio': '#06b6d4'
     };
+
+    let exerciseEntry, totalVolume, totalCalories, durationMinutes;
+
+    if (cardio) {
+      const minutes = parseInt(overlay.querySelector('#log-minutes').value || '20', 10);
+      const calories = parseInt(overlay.querySelector('#log-calories').value || '0', 10);
+      exerciseEntry = {
+        name: exMeta ? exMeta.name : 'Cardio',
+        category: 'Cardio',
+        sets: [{ setNum: 1, minutes, calories, completed: true }]
+      };
+      totalVolume = 0;
+      totalCalories = calories;
+      durationMinutes = minutes;
+    } else {
+      const defaultWeight = parseFloat(overlay.querySelector('#log-default-weight').value || 20);
+      exerciseEntry = {
+        name: exMeta ? exMeta.name : 'Exercise',
+        category: exMeta ? exMeta.category : category,
+        sets: [
+          { reps: 10, weight: defaultWeight, completed: true },
+          { reps: 10, weight: defaultWeight, completed: true },
+          { reps: 10, weight: defaultWeight, completed: true }
+        ]
+      };
+      totalVolume = defaultWeight * 30;
+      totalCalories = 0;
+      durationMinutes = 45;
+    }
 
     appState.addWorkoutLog({
       id: 'log_' + Date.now(),
@@ -486,22 +618,13 @@ function openQuickLogModal(dateStr) {
       name: name,
       category: category,
       color: colors[category] || '#6366f1',
-      icon: '🏋️',
-      durationMinutes: 45,
-      totalVolume: defaultWeight * 30,
+      icon: cardio ? '🏃' : '🏋️',
+      durationMinutes: durationMinutes,
+      totalVolume: totalVolume,
+      totalCalories: totalCalories,
       notes: notes,
       userLogged: true, // Flag for user completion
-      exercises: [
-        {
-          name: selectedExName,
-          category: category,
-          sets: [
-            { reps: 10, weight: defaultWeight, completed: true },
-            { reps: 10, weight: defaultWeight, completed: true },
-            { reps: 10, weight: defaultWeight, completed: true }
-          ]
-        }
-      ]
+      exercises: [exerciseEntry]
     });
 
     document.body.removeChild(overlay);
