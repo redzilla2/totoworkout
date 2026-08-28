@@ -1,5 +1,5 @@
 import { appState } from '../state.js';
-import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg } from '../utils/helpers.js';
+import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg, DAY_NAMES } from '../utils/helpers.js';
 
 // Logged-workout cards default to a condensed summary (they can otherwise
 // run to hundreds of pixels tall — a full exercise/set editor per card) and
@@ -11,10 +11,26 @@ import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledR
 // removed — a stale id left behind by a deleted log is just inert.
 const expandedLogIds = new Set();
 
+// Removing a scheduled-but-not-logged routine from the Calendar is a
+// two-step "click bin, then confirm" flow rather than a native confirm()
+// popup (unlike the already-logged workouts' delete button) — it's a
+// bigger action than it looks, since the weekly schedule has no per-date
+// concept: clearing it here clears that weekday every week, not just
+// today. A plain boolean is enough (only one scheduled-routine card can
+// ever be showing at a time), reset whenever the selected date changes so
+// switching days doesn't leave a stale confirm prompt armed.
+let confirmingRemoveScheduled = false;
+let confirmingRemoveScheduledForDate = null;
+
 export function renderCalendarView(container) {
   const state = appState.getState();
   const selectedDate = state.selectedDate || new Date().toISOString().split('T')[0];
-  
+
+  if (confirmingRemoveScheduledForDate !== selectedDate) {
+    confirmingRemoveScheduled = false;
+    confirmingRemoveScheduledForDate = selectedDate;
+  }
+
   const curDateObj = new Date(selectedDate);
   const year = curDateObj.getFullYear();
   const month = curDateObj.getMonth();
@@ -42,6 +58,12 @@ export function renderCalendarView(container) {
   const scheduledRoutineForDay = getScheduledRoutine(state, selectedDate);
   const scheduledRoutineDone = scheduledRoutineForDay && selectedDateWorkouts.some(w => w.routineId === scheduledRoutineForDay.id);
   const scheduledRoutine = scheduledRoutineForDay && !scheduledRoutineDone ? scheduledRoutineForDay : null;
+  // Parsed from the date string's own components (not `new Date(selectedDate)`,
+  // which treats a bare YYYY-MM-DD as UTC midnight and can land on the wrong
+  // weekday in negative-UTC-offset timezones) — same approach getScheduledRoutine()
+  // uses, so this always agrees with which routine actually got looked up above.
+  const [selYear, selMonth, selDay] = selectedDate.split('-').map(Number);
+  const selectedDayOfWeek = new Date(selYear, selMonth - 1, selDay).getDay();
 
   container.innerHTML = `
     <!-- Stats Header Bar -->
@@ -216,28 +238,44 @@ export function renderCalendarView(container) {
               <span style="font-weight: 800; font-size: 1.1rem;">${scheduledRoutine.icon || '🏋️'} ${scheduledRoutine.name}</span>
               <span class="badge" style="background: ${scheduledRoutine.color || '#6366f1'}22; color: ${scheduledRoutine.color || '#6366f1'}; margin-left: 8px;">${scheduledRoutine.category}</span>
             </div>
+            ${!confirmingRemoveScheduled ? `
+              <button class="icon-btn remove-scheduled-btn" title="Remove from schedule" style="width: 28px; height: 28px; font-size: 12px; color: var(--accent-rose); flex-shrink: 0;">🗑️</button>
+            ` : ''}
           </div>
           <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">📋 Scheduled — not logged yet</div>
 
-          <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;">
-            ${(scheduledRoutine.exercises || []).map(exItem => {
-              const exMeta = state.exercises.find(e => e.id === exItem.exerciseId);
-              const exName = exMeta ? exMeta.name : exItem.exerciseId;
-              const repsLabel = exItem.repRange
-                ? (exItem.repRange === 'triset' ? 'triset' : `${exItem.repRange} reps`)
-                : `${exItem.defaultReps || 10} reps`;
-              return `
-                <div style="display: flex; justify-content: space-between; font-size: 0.82rem;">
-                  <span>${exName}</span>
-                  <span style="color: var(--text-muted);">${exItem.defaultSets || 3} × ${repsLabel}</span>
-                </div>
-              `;
-            }).join('')}
-          </div>
+          ${confirmingRemoveScheduled ? `
+            <div style="background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.35); border-radius: var(--radius-md); padding: 12px; margin-bottom: 14px;">
+              <div style="font-size: 0.85rem; font-weight: 700; margin-bottom: 2px;">Remove from your schedule?</div>
+              <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 10px;">
+                This clears ${scheduledRoutine.name} from every ${DAY_NAMES[selectedDayOfWeek]}, not just today — you can reassign it anytime from the Weekly Schedule editor.
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary cancel-remove-scheduled-btn" style="flex: 1; padding: 8px; font-size: 0.82rem;">Cancel</button>
+                <button class="btn btn-danger confirm-remove-scheduled-btn" style="flex: 1; padding: 8px; font-size: 0.82rem;">Yes, Remove</button>
+              </div>
+            </div>
+          ` : `
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;">
+              ${(scheduledRoutine.exercises || []).map(exItem => {
+                const exMeta = state.exercises.find(e => e.id === exItem.exerciseId);
+                const exName = exMeta ? exMeta.name : exItem.exerciseId;
+                const repsLabel = exItem.repRange
+                  ? (exItem.repRange === 'triset' ? 'triset' : `${exItem.repRange} reps`)
+                  : `${exItem.defaultReps || 10} reps`;
+                return `
+                  <div style="display: flex; justify-content: space-between; font-size: 0.82rem;">
+                    <span>${exName}</span>
+                    <span style="color: var(--text-muted);">${exItem.defaultSets || 3} × ${repsLabel}</span>
+                  </div>
+                `;
+              }).join('')}
+            </div>
 
-          <button class="btn start-scheduled-btn" id="start-scheduled-btn" style="padding: 10px; font-size: 0.88rem; background: linear-gradient(135deg, ${scheduledRoutine.color || '#6366f1'}, var(--accent-secondary));">
-            ▶ Start This Workout
-          </button>
+            <button class="btn start-scheduled-btn" id="start-scheduled-btn" style="padding: 10px; font-size: 0.88rem; background: linear-gradient(135deg, ${scheduledRoutine.color || '#6366f1'}, var(--accent-secondary));">
+              ▶ Start This Workout
+            </button>
+          `}
         </div>
       ` : ''}
     </div>
@@ -424,6 +462,23 @@ export function renderCalendarView(container) {
   // Start today's/selected date's scheduled routine straight into an active session
   container.querySelector('#start-scheduled-btn')?.addEventListener('click', () => {
     if (scheduledRoutine) appState.startWorkoutFromRoutine(scheduledRoutine);
+  });
+
+  // Two-step "remove from schedule": bin arms the inline confirm, which then
+  // either clears that weekday's schedule or backs out without changing anything.
+  container.querySelector('.remove-scheduled-btn')?.addEventListener('click', () => {
+    confirmingRemoveScheduled = true;
+    renderCalendarView(container);
+  });
+
+  container.querySelector('.cancel-remove-scheduled-btn')?.addEventListener('click', () => {
+    confirmingRemoveScheduled = false;
+    renderCalendarView(container);
+  });
+
+  container.querySelector('.confirm-remove-scheduled-btn')?.addEventListener('click', () => {
+    confirmingRemoveScheduled = false;
+    appState.setDaySchedule(selectedDayOfWeek, null);
   });
 }
 
