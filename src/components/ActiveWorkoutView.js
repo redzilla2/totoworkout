@@ -29,25 +29,37 @@ export function renderActiveWorkoutView(container) {
       <div class="glass-card" style="text-align: center; padding: 40px 20px;">
         <div style="font-size: 48px; margin-bottom: 12px;">🏋️</div>
         <div style="font-size: 1.25rem; font-weight: 800; margin-bottom: 8px;">No Active Workout Session</div>
-        <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 24px;">
-          Choose a routine from the Routines tab or start a blank workout session to begin tracking in real time!
+        <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
+          Build your own session from scratch, or pick one of your saved routines to start tracking in real time!
         </div>
-        <button class="btn" id="start-quick-session-btn">
-          ⚡ Start Blank Workout Session
+
+        <div class="form-group" style="text-align: left; margin-bottom: 14px;">
+          <label class="form-label">Choose a Session</label>
+          <select class="form-select" id="empty-state-session-select">
+            ${renderSessionPickerOptions(state.routines || [])}
+          </select>
+        </div>
+
+        <button class="btn" id="start-picked-session-btn">
+          ▶ Start Session
         </button>
       </div>
     `;
 
-    container.querySelector('#start-quick-session-btn')?.addEventListener('click', () => {
-      appState.startWorkoutFromRoutine({
-        name: 'Quick Workout',
-        category: 'Full Body',
-        exercises: [
-          { exerciseId: 'ex_bench_press', defaultSets: 3, defaultReps: 10, defaultWeight: 60 },
-          { exerciseId: 'ex_squat', defaultSets: 3, defaultReps: 10, defaultWeight: 80 },
-          { exerciseId: 'ex_lat_pulldown', defaultSets: 3, defaultReps: 10, defaultWeight: 50 }
-        ]
-      });
+    container.querySelector('#start-picked-session-btn')?.addEventListener('click', () => {
+      const pickedId = container.querySelector('#empty-state-session-select')?.value;
+      if (!pickedId || pickedId === 'blank') {
+        appState.startWorkoutFromRoutine({
+          name: 'Custom Workout',
+          category: 'Custom',
+          exercises: []
+        });
+        return;
+      }
+      const routine = (state.routines || []).find(r => r.id === pickedId);
+      if (routine) {
+        appState.startWorkoutFromRoutine(routine);
+      }
     });
     return;
   }
@@ -495,6 +507,30 @@ function renderRestOptions(selectedSeconds) {
     const label = `${mins}:${String(secs).padStart(2, '0')}`;
     html += `<option value="${s}" ${s === selectedSeconds ? 'selected' : ''}>${label}</option>`;
   }
+  return html;
+}
+
+// Builds the empty-state session picker: a "build your own" option up top,
+// followed by every saved routine grouped by program (the part of its name
+// before " - ", per the "{Program} {N} Day - {Workout}" convention) so a
+// dropdown of 18+ built-in routines doesn't read as one giant flat list.
+// Routines with no such prefix (user-created ones) fall into "My Routines".
+function renderSessionPickerOptions(routines) {
+  const groups = new Map();
+  routines.forEach(r => {
+    const sepIndex = r.name.indexOf(' - ');
+    const groupLabel = sepIndex > -1 ? r.name.slice(0, sepIndex) : 'My Routines';
+    const optionLabel = sepIndex > -1 ? r.name.slice(sepIndex + 3) : r.name;
+    if (!groups.has(groupLabel)) groups.set(groupLabel, []);
+    groups.get(groupLabel).push({ id: r.id, icon: r.icon || '🏋️', label: optionLabel });
+  });
+
+  let html = `<option value="blank">🆕 Blank Session (Build Your Own)</option>`;
+  groups.forEach((options, groupLabel) => {
+    html += `<optgroup label="${groupLabel}">`;
+    html += options.map(o => `<option value="${o.id}">${o.icon} ${o.label}</option>`).join('');
+    html += `</optgroup>`;
+  });
   return html;
 }
 
