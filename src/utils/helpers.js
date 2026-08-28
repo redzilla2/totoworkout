@@ -120,10 +120,14 @@ export const DAY_SHORT_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 
 /**
  * Looks up the routine (if any) scheduled for a given date's day-of-week,
- * via state.schedule (a { [dayOfWeek]: routineId|null } map).
+ * via state.schedule (a { [dayOfWeek]: routineId|null } map) — unless that
+ * specific date was dismissed from the calendar (state.dismissedScheduleDates,
+ * an array of "YYYY-MM-DD" strings), which skips just that one occurrence
+ * without touching the recurring weekly pattern.
  */
 export function getScheduledRoutine(state, dateStr) {
   if (!dateStr || !state || !state.schedule) return null;
+  if (state.dismissedScheduleDates?.includes(dateStr)) return null;
   const parts = dateStr.split('-');
   if (parts.length < 3) return null;
   const d = new Date(parts[0], parts[1] - 1, parts[2]);

@@ -1,5 +1,5 @@
 import { appState } from '../state.js';
-import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg, DAY_NAMES } from '../utils/helpers.js';
+import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg } from '../utils/helpers.js';
 
 // Logged-workout cards default to a condensed summary (they can otherwise
 // run to hundreds of pixels tall — a full exercise/set editor per card) and
@@ -13,12 +13,13 @@ const expandedLogIds = new Set();
 
 // Removing a scheduled-but-not-logged routine from the Calendar is a
 // two-step "click bin, then confirm" flow rather than a native confirm()
-// popup (unlike the already-logged workouts' delete button) — it's a
-// bigger action than it looks, since the weekly schedule has no per-date
-// concept: clearing it here clears that weekday every week, not just
-// today. A plain boolean is enough (only one scheduled-routine card can
-// ever be showing at a time), reset whenever the selected date changes so
-// switching days doesn't leave a stale confirm prompt armed.
+// popup (unlike the already-logged workouts' delete button). Confirming
+// only dismisses that one date (see appState.dismissScheduledRoutine) —
+// the recurring weekly schedule itself is untouched, so the same weekday
+// next week still shows its programmed routine as normal. A plain boolean
+// is enough (only one scheduled-routine card can ever be showing at a
+// time), reset whenever the selected date changes so switching days
+// doesn't leave a stale confirm prompt armed.
 let confirmingRemoveScheduled = false;
 let confirmingRemoveScheduledForDate = null;
 
@@ -58,12 +59,6 @@ export function renderCalendarView(container) {
   const scheduledRoutineForDay = getScheduledRoutine(state, selectedDate);
   const scheduledRoutineDone = scheduledRoutineForDay && selectedDateWorkouts.some(w => w.routineId === scheduledRoutineForDay.id);
   const scheduledRoutine = scheduledRoutineForDay && !scheduledRoutineDone ? scheduledRoutineForDay : null;
-  // Parsed from the date string's own components (not `new Date(selectedDate)`,
-  // which treats a bare YYYY-MM-DD as UTC midnight and can land on the wrong
-  // weekday in negative-UTC-offset timezones) — same approach getScheduledRoutine()
-  // uses, so this always agrees with which routine actually got looked up above.
-  const [selYear, selMonth, selDay] = selectedDate.split('-').map(Number);
-  const selectedDayOfWeek = new Date(selYear, selMonth - 1, selDay).getDay();
 
   container.innerHTML = `
     <!-- Stats Header Bar -->
@@ -246,9 +241,9 @@ export function renderCalendarView(container) {
 
           ${confirmingRemoveScheduled ? `
             <div style="background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.35); border-radius: var(--radius-md); padding: 12px; margin-bottom: 14px;">
-              <div style="font-size: 0.85rem; font-weight: 700; margin-bottom: 2px;">Remove from your schedule?</div>
+              <div style="font-size: 0.85rem; font-weight: 700; margin-bottom: 2px;">Remove this workout?</div>
               <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 10px;">
-                This clears ${scheduledRoutine.name} from every ${DAY_NAMES[selectedDayOfWeek]}, not just today — you can reassign it anytime from the Weekly Schedule editor.
+                This only removes ${scheduledRoutine.name} from ${formatDisplayDate(selectedDate)} — your weekly schedule is unchanged, so it'll show up again next time this day comes around.
               </div>
               <div style="display: flex; gap: 8px;">
                 <button class="btn btn-secondary cancel-remove-scheduled-btn" style="flex: 1; padding: 8px; font-size: 0.82rem;">Cancel</button>
@@ -478,7 +473,7 @@ export function renderCalendarView(container) {
 
   container.querySelector('.confirm-remove-scheduled-btn')?.addEventListener('click', () => {
     confirmingRemoveScheduled = false;
-    appState.setDaySchedule(selectedDayOfWeek, null);
+    appState.dismissScheduledRoutine(selectedDate);
   });
 }
 

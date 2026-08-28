@@ -34,6 +34,10 @@ function defaultAppData() {
     // their real ones once they start logging.
     history: [],
     bodyWeightLogs: [],
+    // Dates dismissed from the Calendar's scheduled-routine card — see
+    // getScheduledRoutine() in utils/helpers.js. Removes just that one
+    // occurrence without touching the recurring weekly schedule.
+    dismissedScheduleDates: [],
     activeWorkout: null,
     currentView: 'calendar',
     selectedDate: formatDate(new Date()),
@@ -82,6 +86,7 @@ function loadLocalData() {
         // somehow missing its history — same reasoning as defaultAppData().
         history: parsed.history || [],
         bodyWeightLogs: parsed.bodyWeightLogs || [],
+        dismissedScheduleDates: parsed.dismissedScheduleDates || [],
         activeWorkout: parsed.activeWorkout || null,
         currentView: parsed.currentView || 'calendar',
         selectedDate: parsed.selectedDate || formatDate(new Date()),
@@ -199,6 +204,7 @@ class AppState {
         // demo data, if this cloud record is somehow missing its history.
         history: cloud.history || [],
         bodyWeightLogs: cloud.bodyWeightLogs || [],
+        dismissedScheduleDates: cloud.dismissedScheduleDates || [],
         activeWorkout: cloud.activeWorkout || null,
         currentView: cloud.currentView || 'calendar',
         selectedDate: cloud.selectedDate || formatDate(new Date()),
@@ -343,6 +349,7 @@ class AppState {
         schedule: this.state.schedule,
         history: this.state.history,
         bodyWeightLogs: this.state.bodyWeightLogs,
+        dismissedScheduleDates: this.state.dismissedScheduleDates,
         activeWorkout: this.state.activeWorkout,
         currentView: this.state.currentView,
         selectedDate: this.state.selectedDate,
@@ -382,6 +389,7 @@ class AppState {
         schedule: this.state.schedule,
         history: this.state.history,
         bodyWeightLogs: this.state.bodyWeightLogs,
+        dismissedScheduleDates: this.state.dismissedScheduleDates,
         activeWorkout: this.state.activeWorkout,
         currentView: this.state.currentView,
         selectedDate: this.state.selectedDate,
@@ -601,6 +609,17 @@ class AppState {
     this.notify();
   }
 
+  // Removes just this one date's scheduled-routine card from the Calendar —
+  // the recurring weekly schedule (state.schedule) is untouched, so every
+  // other week that weekday still shows its programmed routine as normal.
+  // See getScheduledRoutine() in utils/helpers.js.
+  dismissScheduledRoutine(dateStr) {
+    if (!this.state.dismissedScheduleDates.includes(dateStr)) {
+      this.state.dismissedScheduleDates.push(dateStr);
+      this.notify();
+    }
+  }
+
   // Creates a fresh empty routine and assigns it to the given day — used when
   // adding the first exercise to a day that's currently a rest day.
   createRoutineForDay(dayOfWeek, name) {
@@ -656,6 +675,7 @@ class AppState {
   clearAllData() {
     this.state.history = [];
     this.state.bodyWeightLogs = [];
+    this.state.dismissedScheduleDates = [];
     this.state.activeWorkout = null;
     this.notify();
   }
