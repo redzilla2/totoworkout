@@ -190,5 +190,104 @@ export const DEFAULT_ROUTINES = [
       { exerciseId: 'ex_fedb_reverse_barbell_curl', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12-15' },
       { exerciseId: 'ex_french_press_overhead_ext', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12-15' }
     ]
+  },
+
+  // Push Pull Legs Split - 6 Day Program (strength days 1-3, hypertrophy days 4-6;
+  // source: thefitnessphantom.com/push-pull-legs-6-day-split-for-strength-and-hypertrophy)
+  {
+    id: 'routine_ppl_day1_push_str',
+    name: 'PPL 6 Day - Push Strength',
+    category: 'Push',
+    icon: '📤',
+    color: '#dc2626',
+    exercises: [
+      { exerciseId: 'ex_bench_press', defaultSets: 4, defaultReps: 8, defaultWeight: 0, repRange: '8,8,6,6' },
+      { exerciseId: 'ex_incline_db_bench', defaultSets: 4, defaultReps: 8, defaultWeight: 0, repRange: '8,8,6,6' },
+      { exerciseId: 'ex_barbell_ohp', defaultSets: 4, defaultReps: 8, defaultWeight: 0, repRange: '8,8,6,6' },
+      { exerciseId: 'ex_dips', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_fedb_triceps_pushdown', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' }
+    ]
+  },
+  {
+    id: 'routine_ppl_day2_pull_str',
+    name: 'PPL 6 Day - Pull Strength',
+    category: 'Pull',
+    icon: '📥',
+    color: '#2563eb',
+    exercises: [
+      { exerciseId: 'ex_deadlift', defaultSets: 5, defaultReps: 8, defaultWeight: 0, repRange: '8,7,6,5,4' },
+      { exerciseId: 'ex_fedb_weighted_pull_ups', defaultSets: 3, defaultReps: 4, defaultWeight: 0, repRange: '4-10' },
+      { exerciseId: 'ex_lat_pulldown', defaultSets: 4, defaultReps: 8, defaultWeight: 0, repRange: '8,8,6,6' },
+      { exerciseId: 'ex_fedb_seated_cable_rows', defaultSets: 4, defaultReps: 8, defaultWeight: 0, repRange: '8,8,6,6' },
+      { exerciseId: 'ex_barbell_curl', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10,8,6' }
+    ]
+  },
+  {
+    id: 'routine_ppl_day3_legs_str',
+    name: 'PPL 6 Day - Legs Strength',
+    category: 'Legs / Core',
+    icon: '🦵',
+    color: '#16a34a',
+    exercises: [
+      { exerciseId: 'ex_squat', defaultSets: 4, defaultReps: 8, defaultWeight: 0, repRange: '8,8,6,6' },
+      { exerciseId: 'ex_leg_press', defaultSets: 4, defaultReps: 8, defaultWeight: 0, repRange: '8,8,6,6' },
+      { exerciseId: 'ex_smith_machine_lunges', defaultSets: 2, defaultReps: 8, defaultWeight: 0, repRange: '8 per side' },
+      { exerciseId: 'ex_db_romanian_deadlift', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8,6,4' },
+      { exerciseId: 'ex_fedb_barbell_hip_thrust', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8' },
+      { exerciseId: 'ex_fedb_hanging_leg_raise', defaultSets: 2, defaultReps: 10, defaultWeight: 0, repRange: '10' },
+      { exerciseId: 'ex_fedb_standing_cable_wood_chop', defaultSets: 2, defaultReps: 10, defaultWeight: 0, repRange: '10' },
+      { exerciseId: 'ex_fedb_plank', defaultSets: 2, defaultReps: 60, defaultWeight: 0 }
+    ]
+  },
+  {
+    id: 'routine_ppl_day4_push_hyp',
+    name: 'PPL 6 Day - Push Hypertrophy',
+    category: 'Push',
+    icon: '📤',
+    color: '#fb923c',
+    exercises: [
+      { exerciseId: 'ex_fedb_barbell_incline_bench_press_medium_grip', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10' },
+      { exerciseId: 'ex_fedb_butterfly', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10' },
+      { exerciseId: 'ex_fedb_cable_crossover', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10' },
+      { exerciseId: 'ex_dumbbell_ohp', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10' },
+      { exerciseId: 'ex_fedb_front_dumbbell_raise', defaultSets: 4, defaultReps: 8, defaultWeight: 0, repRange: '8-10' },
+      { exerciseId: 'ex_one_arm_overhead_tricep_ext', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_crossbody_tricep_pushdown', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10/arm' }
+    ]
+  },
+  {
+    id: 'routine_ppl_day5_pull_hyp',
+    name: 'PPL 6 Day - Pull Hypertrophy',
+    category: 'Pull',
+    icon: '📥',
+    color: '#38bdf8',
+    exercises: [
+      { exerciseId: 'ex_fedb_pullups', defaultSets: 4, defaultReps: 10, defaultWeight: 0, repRange: 'Max Reps' },
+      { exerciseId: 'ex_fedb_close_grip_front_lat_pulldown', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10' },
+      { exerciseId: 'ex_fedb_lying_t_bar_row', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10' },
+      { exerciseId: 'ex_fedb_straight_arm_pulldown', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10' },
+      { exerciseId: 'ex_fedb_face_pull', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10' },
+      { exerciseId: 'ex_fedb_barbell_shrug', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12,10,10' },
+      { exerciseId: 'ex_fedb_preacher_curl', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10' },
+      { exerciseId: 'ex_fedb_reverse_barbell_curl', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10' }
+    ]
+  },
+  {
+    id: 'routine_ppl_day6_legs_hyp',
+    name: 'PPL 6 Day - Legs Hypertrophy',
+    category: 'Legs / Core',
+    icon: '🦵',
+    color: '#4ade80',
+    exercises: [
+      { exerciseId: 'ex_leg_extension', defaultSets: 4, defaultReps: 20, defaultWeight: 0, repRange: '20,15,12,10' },
+      { exerciseId: 'ex_fedb_hack_squat', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10' },
+      { exerciseId: 'ex_leg_curl', defaultSets: 4, defaultReps: 20, defaultWeight: 0, repRange: '20,15,12,10' },
+      { exerciseId: 'ex_bulgarian_split_squat', defaultSets: 2, defaultReps: 10, defaultWeight: 0, repRange: '10 per leg' },
+      { exerciseId: 'ex_fedb_hyperextensions_back_extensions', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12-15' },
+      { exerciseId: 'ex_fedb_cable_crunch', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15-20' },
+      { exerciseId: 'ex_fedb_hanging_leg_raise', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15-20' },
+      { exerciseId: 'ex_knee_to_elbow_cable_crunch', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10/side' },
+      { exerciseId: 'ex_fedb_ab_roller', defaultSets: 2, defaultReps: 60, defaultWeight: 0 }
+    ]
   }
 ];
