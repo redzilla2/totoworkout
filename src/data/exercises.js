@@ -74,6 +74,11 @@ export const DEFAULT_EXERCISES = [
   { id: 'ex_one_arm_overhead_tricep_ext', name: 'One-Arm Overhead Triceps Extension', category: 'Arms', equipment: 'Dumbbell', defaultRest: 60 },
   { id: 'ex_crossbody_tricep_pushdown', name: 'Cross-Body Triceps Pushdown', category: 'Arms', equipment: 'Cable', defaultRest: 60 },
   { id: 'ex_knee_to_elbow_cable_crunch', name: 'Knee-to-Elbow Cable Crunch', category: 'Core', equipment: 'Cable', defaultRest: 45 },
+
+  // Hybrid 5 Day Program Exercises
+  { id: 'ex_dumbbell_wrist_extension', name: 'Dumbbell Wrist Extension', category: 'Arms', equipment: 'Dumbbell', defaultRest: 45 },
+  { id: 'ex_high_to_low_cable_fly', name: 'High-to-Low Cable Fly', category: 'Chest', equipment: 'Cable', defaultRest: 90 },
+  { id: 'ex_abs_circuit_10min', name: '10-Minute Abs Circuit', category: 'Core', equipment: 'Bodyweight', defaultRest: 60 },
   // Free Exercise DB additions (public domain: github.com/yuhonas/free-exercise-db)
 
   // Chest

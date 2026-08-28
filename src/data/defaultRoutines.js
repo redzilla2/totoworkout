@@ -289,5 +289,86 @@ export const DEFAULT_ROUTINES = [
       { exerciseId: 'ex_knee_to_elbow_cable_crunch', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10/side' },
       { exerciseId: 'ex_fedb_ab_roller', defaultSets: 2, defaultReps: 60, defaultWeight: 0 }
     ]
+  },
+
+  // Hybrid Split - 5 Day Program (each major muscle group trained twice a
+  // week; source: thefitnessphantom.com/5-day-gym-workout-schedule-with-pdf)
+  {
+    id: 'routine_hybrid5_day1',
+    name: 'Hybrid 5 Day - Chest, Delts & Triceps',
+    category: 'Push',
+    icon: '🧨',
+    color: '#f472b6',
+    exercises: [
+      { exerciseId: 'ex_bench_press', defaultSets: 4, defaultReps: 12, defaultWeight: 0, repRange: '12,10,8,6' },
+      { exerciseId: 'ex_incline_db_bench', defaultSets: 4, defaultReps: 12, defaultWeight: 0, repRange: '12,10,8,6' },
+      { exerciseId: 'ex_fedb_butterfly', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10' },
+      { exerciseId: 'ex_dips', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-12' },
+      { exerciseId: 'ex_cable_lateral_raise', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10/arm' },
+      { exerciseId: 'ex_fedb_triceps_pushdown_rope_attachment', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-15' },
+      { exerciseId: 'ex_one_arm_overhead_tricep_ext', defaultSets: 2, defaultReps: 10, defaultWeight: 0, repRange: '10/arm' }
+    ]
+  },
+  {
+    id: 'routine_hybrid5_day2',
+    name: 'Hybrid 5 Day - Quads, Calves & Abs',
+    category: 'Legs / Core',
+    icon: '🦿',
+    color: '#34d399',
+    exercises: [
+      { exerciseId: 'ex_squat', defaultSets: 4, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10,8' },
+      { exerciseId: 'ex_leg_press', defaultSets: 4, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10,8' },
+      { exerciseId: 'ex_leg_extension', defaultSets: 4, defaultReps: 20, defaultWeight: 0, repRange: '20,15,12,10' },
+      { exerciseId: 'ex_calf_raise_standing', defaultSets: 4, defaultReps: 20, defaultWeight: 0, repRange: '20,15,12,10' },
+      { exerciseId: 'ex_abs_circuit_10min', defaultSets: 1, defaultReps: 600, defaultWeight: 0 }
+    ]
+  },
+  {
+    id: 'routine_hybrid5_day3',
+    name: 'Hybrid 5 Day - Back, Biceps & Forearms',
+    category: 'Pull',
+    icon: '🪝',
+    color: '#818cf8',
+    exercises: [
+      { exerciseId: 'ex_fedb_pullups', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: 'To Failure' },
+      { exerciseId: 'ex_lat_pulldown', defaultSets: 4, defaultReps: 12, defaultWeight: 0, repRange: '12,10,8,6' },
+      { exerciseId: 'ex_fedb_seated_cable_rows', defaultSets: 4, defaultReps: 12, defaultWeight: 0, repRange: '12,10,8,6' },
+      { exerciseId: 'ex_barbell_row', defaultSets: 4, defaultReps: 12, defaultWeight: 0, repRange: '12,10,8,6' },
+      { exerciseId: 'ex_fedb_cable_rear_delt_fly', defaultSets: 4, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10,8' },
+      { exerciseId: 'ex_barbell_curl', defaultSets: 3, defaultReps: 20, defaultWeight: 0, repRange: '20,15,12' },
+      { exerciseId: 'ex_fedb_concentration_curls', defaultSets: 3, defaultReps: 15, defaultWeight: 0, repRange: '15/arm' },
+      { exerciseId: 'ex_dumbbell_wrist_extension', defaultSets: 3, defaultReps: 12, defaultWeight: 0, repRange: '12-15' }
+    ]
+  },
+  {
+    id: 'routine_hybrid5_day4',
+    name: 'Hybrid 5 Day - Chest, Hamstrings & Glutes',
+    category: 'Full Body',
+    icon: '🧱',
+    color: '#fbbf24',
+    exercises: [
+      { exerciseId: 'ex_fedb_barbell_incline_bench_press_medium_grip', defaultSets: 4, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10,8' },
+      { exerciseId: 'ex_high_to_low_cable_fly', defaultSets: 4, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10,8' },
+      { exerciseId: 'ex_fedb_dumbbell_lunges', defaultSets: 2, defaultReps: 15, defaultWeight: 0, repRange: '15/leg' },
+      { exerciseId: 'ex_leg_curl', defaultSets: 4, defaultReps: 20, defaultWeight: 0, repRange: '20,15,12,10' },
+      { exerciseId: 'ex_rdl', defaultSets: 4, defaultReps: 12, defaultWeight: 0, repRange: '12,10,8,6' },
+      { exerciseId: 'ex_fedb_standing_cable_wood_chop', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10/side' },
+      { exerciseId: 'ex_fedb_landmine_180_s', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10/side' }
+    ]
+  },
+  {
+    id: 'routine_hybrid5_day5',
+    name: 'Hybrid 5 Day - Back & Shoulders',
+    category: 'Pull / Shoulders',
+    icon: '🛡️',
+    color: '#22d3ee',
+    exercises: [
+      { exerciseId: 'ex_arnold_press', defaultSets: 4, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10,8' },
+      { exerciseId: 'ex_bent_over_rear_delt_raise', defaultSets: 4, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10,8' },
+      { exerciseId: 'ex_fedb_close_grip_front_lat_pulldown', defaultSets: 4, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10,8' },
+      { exerciseId: 'ex_fedb_t_bar_row_with_handle', defaultSets: 4, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10,8' },
+      { exerciseId: 'ex_single_arm_db_row', defaultSets: 2, defaultReps: 15, defaultWeight: 0, repRange: '15/side' },
+      { exerciseId: 'ex_fedb_dumbbell_shrug', defaultSets: 4, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10,8' }
+    ]
   }
 ];
