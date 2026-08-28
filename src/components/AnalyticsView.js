@@ -6,6 +6,11 @@ import { calculateStreak, calculateTotalVolume, formatDate } from '../utils/help
 // Weekly Schedule editor's selected-day state.
 let selectedRange = 'month';
 
+// The Data Management & Backup card (export/restore-demo/clear-all) is
+// destructive and app-wide, so it's restricted to the admin account rather
+// than shown to every signed-in user.
+const ADMIN_EMAIL = 'anthonybristol@gmail.com';
+
 const RANGE_DAYS = { month: 30, '6month': 182, year: 365, all: Infinity };
 const RANGE_LABELS = { month: 'Month', '6month': '6 Month', year: 'Year', all: 'All' };
 
@@ -38,6 +43,8 @@ export function renderAnalyticsView(container) {
 
   const sortedWeights = [...bodyWeightLogs].sort((a, b) => a.date.localeCompare(b.date));
   const filteredWeights = filterWeightsByRange(sortedWeights, selectedRange);
+
+  const isAdmin = (appState.getUserEmail() || '').toLowerCase() === ADMIN_EMAIL;
 
   container.innerHTML = `
     <!-- Top Summary Grid -->
@@ -146,26 +153,28 @@ export function renderAnalyticsView(container) {
       </div>
     </div>
 
-    <!-- Data Management & Backups -->
-    <div class="glass-card">
-      <div class="card-header">
-        <div class="card-title">⚙️ Data Management & Backup</div>
+    <!-- Data Management & Backups (admin-only) -->
+    ${isAdmin ? `
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">⚙️ Data Management & Backup</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button class="btn btn-secondary" id="export-json-btn">
+            💾 Export Data Backup (JSON)
+          </button>
+
+          <button class="btn btn-secondary" id="reload-demo-btn">
+            🔄 Restore Demo Sample History
+          </button>
+
+          <button class="btn btn-danger" id="clear-data-btn">
+            🗑️ Clear All App Data
+          </button>
+        </div>
       </div>
-
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <button class="btn btn-secondary" id="export-json-btn">
-          💾 Export Data Backup (JSON)
-        </button>
-
-        <button class="btn btn-secondary" id="reload-demo-btn">
-          🔄 Restore Demo Sample History
-        </button>
-
-        <button class="btn btn-danger" id="clear-data-btn">
-          🗑️ Clear All App Data
-        </button>
-      </div>
-    </div>
+    ` : ''}
   `;
 
   // Attach Event Handlers
