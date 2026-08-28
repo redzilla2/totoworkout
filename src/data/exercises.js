@@ -68,6 +68,12 @@ export const DEFAULT_EXERCISES = [
   // Gym Full Body 3 Day Program Exercises
   { id: 'ex_chest_supported_row_neutral', name: 'Chest-Supported Row (Neutral Grip)', category: 'Back', equipment: 'Dumbbell / Incline Bench', defaultRest: 90 },
   { id: 'ex_french_press_overhead_ext', name: 'French Press (Overhead Triceps Extension)', category: 'Arms', equipment: 'EZ Bar', defaultRest: 60 },
+
+  // Push Pull Legs 6 Day Program Exercises
+  { id: 'ex_smith_machine_lunges', name: 'Smith Machine Lunges', category: 'Legs', equipment: 'Machine', defaultRest: 90 },
+  { id: 'ex_one_arm_overhead_tricep_ext', name: 'One-Arm Overhead Triceps Extension', category: 'Arms', equipment: 'Dumbbell', defaultRest: 60 },
+  { id: 'ex_crossbody_tricep_pushdown', name: 'Cross-Body Triceps Pushdown', category: 'Arms', equipment: 'Cable', defaultRest: 60 },
+  { id: 'ex_knee_to_elbow_cable_crunch', name: 'Knee-to-Elbow Cable Crunch', category: 'Core', equipment: 'Cable', defaultRest: 45 },
   // Free Exercise DB additions (public domain: github.com/yuhonas/free-exercise-db)
 
   // Chest
