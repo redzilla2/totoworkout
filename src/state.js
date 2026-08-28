@@ -2,6 +2,7 @@ import { DEFAULT_EXERCISES } from './data/exercises.js';
 import { DEFAULT_ROUTINES } from './data/defaultRoutines.js';
 import { generateSampleHistory } from './data/sampleHistory.js';
 import { formatDate, isCardioCategory } from './utils/helpers.js';
+import { moveArrayItem } from './utils/dragReorder.js';
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 
 const STORAGE_KEY = 'totoworkouts_app_state_v4'; // Version bump for streak flag sync
@@ -507,6 +508,14 @@ class AppState {
     const routine = this.state.routines.find(r => r.id === routineId);
     if (!routine) return;
     routine.exercises.splice(exerciseIndex, 1);
+    this.notify();
+  }
+
+  // Reorders a routine's exercise list (drag-to-reorder in the Schedule editor).
+  reorderRoutineExercises(routineId, fromIndex, toIndex) {
+    const routine = this.state.routines.find(r => r.id === routineId);
+    if (!routine || !routine.exercises[fromIndex]) return;
+    moveArrayItem(routine.exercises, fromIndex, toIndex);
     this.notify();
   }
 

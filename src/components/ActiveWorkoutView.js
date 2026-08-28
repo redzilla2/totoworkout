@@ -1,6 +1,7 @@
 import { appState } from '../state.js';
 import { RestTimer } from '../utils/timer.js';
 import { isCardioCategory } from '../utils/helpers.js';
+import { enableDragReorder, moveArrayItem } from '../utils/dragReorder.js';
 
 let currentRestTimer = null;
 
@@ -123,11 +124,14 @@ export function renderActiveWorkoutView(container) {
     <!-- Exercises Checklist -->
     <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;">
       ${session.exercises.map((ex, exIndex) => `
-        <div class="glass-card" style="margin-bottom: 0; padding: 16px;">
+        <div class="glass-card exercise-card" style="margin-bottom: 0; padding: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <div>
-              <div style="font-weight: 700; font-size: 1.05rem;">${isCardioCategory(ex.category) ? '🏃' : '💪'} ${ex.name}</div>
-              ${ex.repRange ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Target: ${ex.repRange === 'triset' ? 'triset' : `${ex.repRange} reps`}</div>` : ''}
+            <div style="display: flex; align-items: center; gap: 4px; min-width: 0;">
+              <span class="drag-handle" title="Drag to reorder">⠿</span>
+              <div style="min-width: 0;">
+                <div style="font-weight: 700; font-size: 1.05rem;">${isCardioCategory(ex.category) ? '🏃' : '💪'} ${ex.name}</div>
+                ${ex.repRange ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Target: ${ex.repRange === 'triset' ? 'triset' : `${ex.repRange} reps`}</div>` : ''}
+              </div>
             </div>
             <div style="display: flex; align-items: center; gap: 6px;">
               ${!isCardioCategory(ex.category) ? `<button class="btn btn-secondary add-set-btn" data-ex="${exIndex}" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">+ Set</button>` : ''}
@@ -187,6 +191,18 @@ export function renderActiveWorkoutView(container) {
   `;
 
   startElapsedTimer(session, container);
+
+  // Drag-to-reorder exercise cards (handle-only, so scrolling the rest of
+  // the page still works normally on touch).
+  enableDragReorder(container, {
+    itemSelector: '.exercise-card',
+    handleSelector: '.drag-handle',
+    onReorder: (fromIndex, toIndex) => {
+      moveArrayItem(session.exercises, fromIndex, toIndex);
+      appState.updateActiveWorkout(session);
+      renderActiveWorkoutView(container);
+    }
+  });
 
   // Attach Event Handlers
   container.querySelector('#cancel-active-btn')?.addEventListener('click', () => {
