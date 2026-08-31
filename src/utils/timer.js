@@ -87,34 +87,68 @@ export function playHornSound() {
 
 /**
  * Rest Timer Controller class
+ *
+ * Counts down against an absolute end timestamp rather than decrementing a
+ * seconds-left counter once per tick. That distinction matters a lot on
+ * mobile: browsers throttle (or fully suspend) setInterval while the screen
+ * is locked or the tab is backgrounded, so a counter-based timer simply
+ * loses whatever ticks it missed — the countdown looks "paused," and then
+ * effectively restarts from wherever it happened to be when the phone woke
+ * back up, instead of reflecting how much rest time actually passed. Ticking
+ * against `endTime` sidesteps that entirely: however long the JS was
+ * suspended for, the very next tick (or the forced one below) recomputes the
+ * correct remaining time from real elapsed wall-clock time.
  */
 export class RestTimer {
   constructor(onTick, onComplete) {
     this.onTick = onTick;
     this.onComplete = onComplete;
-    this.secondsLeft = 0;
+    this.endTime = 0;
     this.timerId = null;
+    this.stabsPlayed = null;
+    this.completed = false;
+    // Also force an immediate recompute the instant the tab/screen becomes
+    // visible again, rather than waiting for the next scheduled tick — which
+    // itself may have been delayed by the same throttling, so the display
+    // could otherwise sit stale for a while even after you're looking at it.
+    this._onVisible = () => {
+      if (!document.hidden) this._tick();
+    };
   }
 
-  start(seconds) {
+  // `endTime`, if given, resumes an already-running countdown (e.g. one
+  // restored from a persisted session after a reload) — otherwise a fresh
+  // one is computed from `seconds`.
+  start(seconds, endTime) {
     this.stop();
-    this.secondsLeft = seconds;
-    if (this.onTick) this.onTick(this.secondsLeft);
+    this.endTime = endTime || (Date.now() + seconds * 1000);
+    this.stabsPlayed = new Set();
+    this.completed = false;
+    this._tick();
+    this.timerId = setInterval(() => this._tick(), 1000);
+    document.addEventListener('visibilitychange', this._onVisible);
+  }
 
-    this.timerId = setInterval(() => {
-      this.secondsLeft--;
-      if (this.onTick) this.onTick(this.secondsLeft);
+  _tick() {
+    if (this.completed) return;
+    const secondsLeft = Math.max(0, Math.ceil((this.endTime - Date.now()) / 1000));
+    if (this.onTick) this.onTick(secondsLeft);
 
-      if (this.secondsLeft > 0 && this.secondsLeft <= 3) {
-        playCountdownStab();
-      }
+    // Guarded by stabsPlayed so a delayed/throttled tick that jumps several
+    // seconds at once (e.g. right after the screen wakes) can't replay every
+    // stab it "missed" in a burst — it just picks up wherever the real
+    // countdown actually is.
+    if (secondsLeft > 0 && secondsLeft <= 3 && !this.stabsPlayed.has(secondsLeft)) {
+      this.stabsPlayed.add(secondsLeft);
+      playCountdownStab();
+    }
 
-      if (this.secondsLeft <= 0) {
-        this.stop();
-        playHornSound();
-        if (this.onComplete) this.onComplete();
-      }
-    }, 1000);
+    if (secondsLeft <= 0) {
+      this.completed = true;
+      this.stop();
+      playHornSound();
+      if (this.onComplete) this.onComplete();
+    }
   }
 
   stop() {
@@ -122,10 +156,16 @@ export class RestTimer {
       clearInterval(this.timerId);
       this.timerId = null;
     }
+    document.removeEventListener('visibilitychange', this._onVisible);
   }
 
   addTime(seconds) {
-    this.secondsLeft = Math.max(0, this.secondsLeft + seconds);
-    if (this.onTick) this.onTick(this.secondsLeft);
+    this.endTime += seconds * 1000;
+    this.completed = false;
+    this._tick();
+  }
+
+  getEndTime() {
+    return this.endTime;
   }
 }
