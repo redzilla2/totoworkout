@@ -3,8 +3,11 @@ import { calculateStreak, calculateTotalVolume, formatDate } from '../utils/help
 
 // Module-level (not component-local) so the selected range survives the full
 // re-renders that fire on every appState.notify() — same pattern used by the
-// Weekly Schedule editor's selected-day state.
+// Weekly Schedule editor's selected-day state. Kept independent per chart
+// (not one shared range) so viewing a year of body weight doesn't also force
+// a year of calorie bars, and vice versa.
 let selectedRange = 'month';
+let selectedCalorieRange = 'month';
 
 // The Data Management & Backup card (export/restore-demo/clear-all) is
 // destructive and app-wide, so it's restricted to the admin account rather
@@ -42,7 +45,19 @@ export function renderAnalyticsView(container) {
   };
 
   const sortedWeights = [...bodyWeightLogs].sort((a, b) => a.date.localeCompare(b.date));
-  const filteredWeights = filterWeightsByRange(sortedWeights, selectedRange);
+  const filteredWeights = filterPointsByRange(sortedWeights, selectedRange);
+
+  // One bar per day that actually has logged calories — not one per calendar
+  // day, so the chart stays readable even over Year/All ranges instead of
+  // needing horizontal scroll for hundreds of mostly-empty days. Multiple
+  // workouts logged the same day (e.g. cardio + lifting) sum into one bar.
+  const caloriesByDate = {};
+  history.forEach(h => {
+    if (!h.userLogged || !h.totalCalories) return;
+    caloriesByDate[h.date] = (caloriesByDate[h.date] || 0) + h.totalCalories;
+  });
+  const sortedCalories = Object.keys(caloriesByDate).sort().map(date => ({ date, calories: caloriesByDate[date] }));
+  const filteredCalories = filterPointsByRange(sortedCalories, selectedCalorieRange);
 
   const isAdmin = (appState.getUserEmail() || '').toLowerCase() === ADMIN_EMAIL;
 
@@ -123,6 +138,34 @@ export function renderAnalyticsView(container) {
         <div style="text-align: center; padding: 20px 10px; color: var(--text-muted);">
           <div style="font-size: 28px; margin-bottom: 6px;">⚖️</div>
           <div style="font-size: 0.85rem;">Log your weight above to start seeing your trend here.</div>
+        </div>
+      `}
+    </div>
+
+    <!-- Daily Calorie Expenditure -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-title">🔥 Daily Calories</div>
+      </div>
+
+      ${sortedCalories.length > 0 ? `
+        <div style="display: flex; gap: 6px; margin-bottom: 14px;">
+          ${Object.keys(RANGE_LABELS).map(key => `
+            <button class="calorie-range-pill" data-range="${key}" style="flex: 1; padding: 8px 4px; border-radius: var(--radius-md); border: 1px solid ${key === selectedCalorieRange ? 'var(--accent-rose)' : 'var(--border-glass)'}; background: ${key === selectedCalorieRange ? 'rgba(244, 63, 94, 0.15)' : 'rgba(255, 255, 255, 0.03)'}; color: ${key === selectedCalorieRange ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-weight: 700; font-size: 0.75rem; cursor: pointer; font-family: inherit; transition: all 0.2s ease;">
+              ${RANGE_LABELS[key]}
+            </button>
+          `).join('')}
+        </div>
+
+        <div id="calorie-chart-wrapper" style="position: relative;">
+          ${renderCalorieChartSVG(filteredCalories)}
+        </div>
+
+        ${renderCalorieSummaryRow(filteredCalories)}
+      ` : `
+        <div style="text-align: center; padding: 20px 10px; color: var(--text-muted);">
+          <div style="font-size: 28px; margin-bottom: 6px;">🔥</div>
+          <div style="font-size: 0.85rem;">Log a workout to start seeing daily calories burned here.</div>
         </div>
       `}
     </div>
@@ -242,6 +285,13 @@ export function renderAnalyticsView(container) {
     });
   });
 
+  container.querySelectorAll('.calorie-range-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedCalorieRange = btn.getAttribute('data-range');
+      renderAnalyticsView(container);
+    });
+  });
+
   container.querySelectorAll('.delete-weight-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-id');
@@ -252,15 +302,19 @@ export function renderAnalyticsView(container) {
   });
 
   setupWeightChartInteractivity(container, filteredWeights);
+  setupCalorieChartInteractivity(container, filteredCalories);
 }
 
-function filterWeightsByRange(sortedWeights, range) {
-  if (range === 'all') return sortedWeights;
+// Shared by the Body Weight and Daily Calories charts — both deal in
+// {date, ...} points sorted ascending, just filtered to a different range
+// independently (see selectedRange / selectedCalorieRange).
+function filterPointsByRange(sortedPoints, range) {
+  if (range === 'all') return sortedPoints;
   const days = RANGE_DAYS[range] ?? RANGE_DAYS.month;
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
   const cutoffStr = formatDate(cutoff);
-  return sortedWeights.filter(w => w.date >= cutoffStr);
+  return sortedPoints.filter(p => p.date >= cutoffStr);
 }
 
 function formatShortMonthDay(dateStr) {
@@ -427,6 +481,166 @@ function setupWeightChartInteractivity(container, points) {
   function hide() {
     crosshairLine.setAttribute('visibility', 'hidden');
     crosshairDot.setAttribute('visibility', 'hidden');
+    if (tooltip) tooltip.style.display = 'none';
+  }
+
+  hoverTarget.addEventListener('mousemove', (e) => showAt(nearestIndexForClientX(e.clientX)));
+  hoverTarget.addEventListener('mouseleave', hide);
+  hoverTarget.addEventListener('touchstart', (e) => {
+    const touch = e.touches[0];
+    if (touch) showAt(nearestIndexForClientX(touch.clientX));
+  }, { passive: true });
+  hoverTarget.addEventListener('touchmove', (e) => {
+    const touch = e.touches[0];
+    if (touch) showAt(nearestIndexForClientX(touch.clientX));
+  }, { passive: true });
+  hoverTarget.addEventListener('touchend', hide);
+}
+
+// Single source of truth for the bar chart's coordinate system — same
+// "layout function shared by render + hover" pattern as computeWeightChartLayout.
+// Unlike the weight line (a windowed/zoomed range so small fluctuations are
+// still visible), a bar chart's value axis always starts at 0 — anything
+// else exaggerates the differences between bars, since height/area is what's
+// actually being compared here, not just vertical position.
+function computeCalorieChartLayout(points) {
+  const W = 300, H = 170;
+  const padL = 32, padR = 10, padT = 14, padB = 26;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const maxVal = Math.max(...points.map(p => p.calories), 1);
+  const axisMax = maxVal * 1.15; // headroom so the tallest bar doesn't touch the top edge
+
+  const slot = points.length > 0 ? plotW / points.length : plotW;
+  const barGap = 2; // fixed 2px surface gap between adjacent bars, per the dataviz skill
+  const barWidth = Math.max(2, slot - barGap);
+
+  const xForIndex = (i) => padL + i * slot + slot / 2;
+  const yForValue = (v) => padT + plotH - (v / axisMax) * plotH;
+  const heightForValue = (v) => (v / axisMax) * plotH;
+
+  return { W, H, padL, padR, padT, padB, plotW, plotH, axisMax, barWidth, xForIndex, yForValue, heightForValue };
+}
+
+// A bar rounded only at the top (4px, per the dataviz skill's mark spec) —
+// the bottom stays flush with the baseline it's anchored to.
+function roundedTopBarPath(x, width, top, bottom, radius) {
+  const r = Math.max(0, Math.min(radius, width / 2, bottom - top));
+  return `M ${x} ${bottom} L ${x} ${(top + r).toFixed(1)} Q ${x} ${top.toFixed(1)} ${(x + r).toFixed(1)} ${top.toFixed(1)} L ${(x + width - r).toFixed(1)} ${top.toFixed(1)} Q ${(x + width).toFixed(1)} ${top.toFixed(1)} ${(x + width).toFixed(1)} ${(top + r).toFixed(1)} L ${(x + width).toFixed(1)} ${bottom} Z`;
+}
+
+function renderCalorieChartSVG(points) {
+  if (points.length === 0) return '';
+
+  const { W, H, padL, padR, padT, plotW, plotH, axisMax, barWidth, xForIndex, yForValue, heightForValue } = computeCalorieChartLayout(points);
+
+  // Y-axis: 4 evenly spaced reference gridlines from 0, recessive per the
+  // dataviz skill — low-opacity lines, muted label ink, never competing
+  // with the bars themselves.
+  const tickCount = 4;
+  const gridLines = [];
+  for (let t = 0; t <= tickCount; t++) {
+    const val = (t / tickCount) * axisMax;
+    const y = yForValue(val);
+    gridLines.push(`
+      <line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+      <text x="${(padL - 6).toFixed(1)}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--text-muted)">${Math.round(val)}</text>
+    `);
+  }
+
+  // X-axis: a handful of evenly spaced date labels rather than one per bar,
+  // so they never collide regardless of how many logged days are in range.
+  const xLabelCount = Math.min(4, points.length);
+  const xLabelIndices = [...new Set(
+    Array.from({ length: xLabelCount }, (_, t) => Math.round((t / (xLabelCount - 1 || 1)) * (points.length - 1)))
+  )];
+  const xLabels = xLabelIndices.map(idx => `
+    <text x="${xForIndex(idx).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="8" fill="var(--text-muted)">${formatShortMonthDay(points[idx].date)}</text>
+  `).join('');
+
+  const floorY = padT + plotH;
+  const bars = points.map((p, i) => {
+    const x = xForIndex(i) - barWidth / 2;
+    const top = floorY - heightForValue(p.calories);
+    return `<path class="calorie-bar" data-index="${i}" d="${roundedTopBarPath(x, barWidth, top, floorY, 4)}" fill="var(--accent-rose)" opacity="0.85" />`;
+  }).join('');
+
+  return `
+    <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; display: block; overflow: visible;" id="calorie-chart-svg">
+      ${gridLines.join('')}
+      ${bars}
+      ${xLabels}
+      <rect id="calorie-hover-target" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" style="cursor: crosshair;" />
+    </svg>
+    <div id="calorie-tooltip" style="position: absolute; display: none; pointer-events: none; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 5px 9px; font-size: 0.72rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; z-index: 10; box-shadow: var(--shadow-card); transform: translate(-50%, -100%);"></div>
+  `;
+}
+
+function renderCalorieSummaryRow(points) {
+  if (points.length === 0) return '';
+  const total = points.reduce((sum, p) => sum + p.calories, 0);
+  const avg = Math.round(total / points.length);
+
+  return `
+    <div style="display: flex; justify-content: space-around; margin-top: 14px; text-align: center;">
+      <div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: var(--accent-rose);">${total.toLocaleString()}</div>
+        <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">TOTAL KCAL IN RANGE</div>
+      </div>
+      <div style="width: 1px; background: var(--border-glass);"></div>
+      <div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: var(--text-primary);">${avg.toLocaleString()}</div>
+        <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">AVG PER LOGGED DAY</div>
+      </div>
+    </div>
+  `;
+}
+
+// Per-mark hover tooltip (not a crosshair — this is a bar chart, each mark
+// is its own discrete value, per the dataviz skill's interaction guidance).
+// Same re-query-fresh-every-render defensive pattern as the weight chart.
+function setupCalorieChartInteractivity(container, points) {
+  const svg = container.querySelector('#calorie-chart-svg');
+  const hoverTarget = container.querySelector('#calorie-hover-target');
+  if (!svg || !hoverTarget || points.length === 0) return;
+
+  const layout = computeCalorieChartLayout(points);
+  const tooltip = container.querySelector('#calorie-tooltip');
+  const bars = [...svg.querySelectorAll('.calorie-bar')];
+
+  function nearestIndexForClientX(clientX) {
+    const rect = svg.getBoundingClientRect();
+    const relX = ((clientX - rect.left) / rect.width) * layout.W;
+    let nearest = 0;
+    let minDist = Infinity;
+    points.forEach((p, i) => {
+      const dist = Math.abs(layout.xForIndex(i) - relX);
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = i;
+      }
+    });
+    return nearest;
+  }
+
+  function showAt(index) {
+    const p = points[index];
+    const x = layout.xForIndex(index);
+    const y = layout.yForValue(p.calories);
+
+    bars.forEach((bar, i) => bar.setAttribute('opacity', i === index ? '1' : '0.85'));
+
+    if (tooltip) {
+      tooltip.style.display = 'block';
+      tooltip.textContent = `${formatShortMonthDay(p.date)} · ${p.calories.toLocaleString()} kcal`;
+      tooltip.style.left = `${((x / layout.W) * 100).toFixed(1)}%`;
+      tooltip.style.top = `${((y / layout.H) * 100).toFixed(1)}%`;
+    }
+  }
+
+  function hide() {
+    bars.forEach(bar => bar.setAttribute('opacity', '0.85'));
     if (tooltip) tooltip.style.display = 'none';
   }
 
