@@ -1,5 +1,5 @@
 import { appState } from '../state.js';
-import { calculateStreak, calculateTotalVolume, formatDate } from '../utils/helpers.js';
+import { calculateStreak, calculateTotalVolume, formatDate, isCardioCategory } from '../utils/helpers.js';
 
 // Module-level (not component-local) so the selected range survives the full
 // re-renders that fire on every appState.notify() — same pattern used by the
@@ -8,6 +8,8 @@ import { calculateStreak, calculateTotalVolume, formatDate } from '../utils/help
 // a year of calorie bars, and vice versa.
 let selectedRange = 'month';
 let selectedCalorieRange = 'month';
+let selectedVolumeRange = 'month';
+let selectedCardioRange = 'month';
 
 // The Data Management & Backup card (export/restore-demo/clear-all) is
 // destructive and app-wide, so it's restricted to the admin account rather
@@ -56,8 +58,34 @@ export function renderAnalyticsView(container) {
     if (!h.userLogged || !h.totalCalories) return;
     caloriesByDate[h.date] = (caloriesByDate[h.date] || 0) + h.totalCalories;
   });
-  const sortedCalories = Object.keys(caloriesByDate).sort().map(date => ({ date, calories: caloriesByDate[date] }));
+  const sortedCalories = Object.keys(caloriesByDate).sort().map(date => ({ date, value: caloriesByDate[date] }));
   const filteredCalories = filterPointsByRange(sortedCalories, selectedCalorieRange);
+
+  // Weekly (not daily) for volume/cardio — a single workout's volume or
+  // cardio minutes is a noisier, less meaningful unit to look at day-to-day
+  // than a week's worth, and weekly bars keep the chart just as readable
+  // over long ranges as the daily calorie one. Bucketed to the same
+  // Sunday-start week the calendar grid itself uses.
+  const volumeByWeek = {};
+  const cardioMinutesByWeek = {};
+  history.forEach(h => {
+    if (!h.userLogged) return;
+    const weekStart = getWeekStart(h.date);
+    if (h.totalVolume) {
+      volumeByWeek[weekStart] = (volumeByWeek[weekStart] || 0) + h.totalVolume;
+    }
+    (h.exercises || []).forEach(ex => {
+      if (!isCardioCategory(ex.category)) return;
+      (ex.sets || []).forEach(s => {
+        if (!s.minutes) return;
+        cardioMinutesByWeek[weekStart] = (cardioMinutesByWeek[weekStart] || 0) + s.minutes;
+      });
+    });
+  });
+  const sortedVolume = Object.keys(volumeByWeek).sort().map(date => ({ date, value: volumeByWeek[date] }));
+  const filteredVolume = filterPointsByRange(sortedVolume, selectedVolumeRange);
+  const sortedCardioMinutes = Object.keys(cardioMinutesByWeek).sort().map(date => ({ date, value: cardioMinutesByWeek[date] }));
+  const filteredCardioMinutes = filterPointsByRange(sortedCardioMinutes, selectedCardioRange);
 
   const isAdmin = (appState.getUserEmail() || '').toLowerCase() === ADMIN_EMAIL;
 
@@ -147,27 +175,65 @@ export function renderAnalyticsView(container) {
       <div class="card-header">
         <div class="card-title">🔥 Daily Calories</div>
       </div>
+      ${renderBarChartCard({
+        idPrefix: 'calorie',
+        points: sortedCalories,
+        filteredPoints: filteredCalories,
+        selectedRange: selectedCalorieRange,
+        pillClass: 'calorie-range-pill',
+        color: 'var(--accent-rose)',
+        pillActiveBg: 'rgba(244, 63, 94, 0.15)',
+        emptyIcon: '🔥',
+        emptyText: 'Log a workout to start seeing daily calories burned here.',
+        totalLabel: 'TOTAL KCAL IN RANGE',
+        avgLabel: 'AVG PER LOGGED DAY',
+        tooltipUnit: 'kcal',
+        dateLabelFn: formatShortMonthDay
+      })}
+    </div>
 
-      ${sortedCalories.length > 0 ? `
-        <div style="display: flex; gap: 6px; margin-bottom: 14px;">
-          ${Object.keys(RANGE_LABELS).map(key => `
-            <button class="calorie-range-pill" data-range="${key}" style="flex: 1; padding: 8px 4px; border-radius: var(--radius-md); border: 1px solid ${key === selectedCalorieRange ? 'var(--accent-rose)' : 'var(--border-glass)'}; background: ${key === selectedCalorieRange ? 'rgba(244, 63, 94, 0.15)' : 'rgba(255, 255, 255, 0.03)'}; color: ${key === selectedCalorieRange ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-weight: 700; font-size: 0.75rem; cursor: pointer; font-family: inherit; transition: all 0.2s ease;">
-              ${RANGE_LABELS[key]}
-            </button>
-          `).join('')}
-        </div>
+    <!-- Weekly Weight Lifted -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-title">🏋️ Weekly Weight Lifted</div>
+      </div>
+      ${renderBarChartCard({
+        idPrefix: 'volume',
+        points: sortedVolume,
+        filteredPoints: filteredVolume,
+        selectedRange: selectedVolumeRange,
+        pillClass: 'volume-range-pill',
+        color: 'var(--accent-primary)',
+        pillActiveBg: 'rgba(99, 102, 241, 0.18)',
+        emptyIcon: '🏋️',
+        emptyText: 'Log a strength workout to start seeing your weekly volume here.',
+        totalLabel: 'TOTAL KG IN RANGE',
+        avgLabel: 'AVG PER WEEK',
+        tooltipUnit: 'kg',
+        dateLabelFn: (d) => `Wk of ${formatShortMonthDay(d)}`
+      })}
+    </div>
 
-        <div id="calorie-chart-wrapper" style="position: relative;">
-          ${renderCalorieChartSVG(filteredCalories)}
-        </div>
-
-        ${renderCalorieSummaryRow(filteredCalories)}
-      ` : `
-        <div style="text-align: center; padding: 20px 10px; color: var(--text-muted);">
-          <div style="font-size: 28px; margin-bottom: 6px;">🔥</div>
-          <div style="font-size: 0.85rem;">Log a workout to start seeing daily calories burned here.</div>
-        </div>
-      `}
+    <!-- Weekly Cardio Minutes -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-title">🏃 Weekly Cardio Minutes</div>
+      </div>
+      ${renderBarChartCard({
+        idPrefix: 'cardio',
+        points: sortedCardioMinutes,
+        filteredPoints: filteredCardioMinutes,
+        selectedRange: selectedCardioRange,
+        pillClass: 'cardio-range-pill',
+        color: 'var(--accent-cyan)',
+        pillActiveBg: 'rgba(6, 182, 212, 0.15)',
+        emptyIcon: '🏃',
+        emptyText: 'Log a cardio workout to start seeing your weekly minutes here.',
+        totalLabel: 'TOTAL MINUTES IN RANGE',
+        avgLabel: 'AVG PER WEEK',
+        tooltipUnit: 'min',
+        dateLabelFn: (d) => `Wk of ${formatShortMonthDay(d)}`
+      })}
     </div>
 
     <!-- Workout Type Distribution -->
@@ -292,6 +358,20 @@ export function renderAnalyticsView(container) {
     });
   });
 
+  container.querySelectorAll('.volume-range-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedVolumeRange = btn.getAttribute('data-range');
+      renderAnalyticsView(container);
+    });
+  });
+
+  container.querySelectorAll('.cardio-range-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedCardioRange = btn.getAttribute('data-range');
+      renderAnalyticsView(container);
+    });
+  });
+
   container.querySelectorAll('.delete-weight-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-id');
@@ -302,12 +382,15 @@ export function renderAnalyticsView(container) {
   });
 
   setupWeightChartInteractivity(container, filteredWeights);
-  setupCalorieChartInteractivity(container, filteredCalories);
+  setupBarChartInteractivity('calorie', container, filteredCalories, formatShortMonthDay, 'kcal');
+  setupBarChartInteractivity('volume', container, filteredVolume, (d) => `Wk of ${formatShortMonthDay(d)}`, 'kg');
+  setupBarChartInteractivity('cardio', container, filteredCardioMinutes, (d) => `Wk of ${formatShortMonthDay(d)}`, 'min');
 }
 
-// Shared by the Body Weight and Daily Calories charts — both deal in
-// {date, ...} points sorted ascending, just filtered to a different range
-// independently (see selectedRange / selectedCalorieRange).
+// Shared by all four charts (Body Weight, Daily Calories, Weekly Weight
+// Lifted, Weekly Cardio Minutes) — they all deal in {date, ...} points
+// sorted ascending, each filtered to its own independent range (see
+// selectedRange / selectedCalorieRange / selectedVolumeRange / selectedCardioRange).
 function filterPointsByRange(sortedPoints, range) {
   if (range === 'all') return sortedPoints;
   const days = RANGE_DAYS[range] ?? RANGE_DAYS.month;
@@ -322,6 +405,49 @@ function formatShortMonthDay(dateStr) {
   if (parts.length < 3) return dateStr;
   const d = new Date(parts[0], parts[1] - 1, parts[2]);
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+// The Sunday that starts the week dateStr falls in — matches the calendar
+// grid's own Sunday-first week (DAY_SHORT_NAMES starts 'SUN'), so "this
+// week" means the same thing here as it does on the Calendar tab.
+function getWeekStart(dateStr) {
+  const parts = dateStr.split('-');
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  d.setDate(d.getDate() - d.getDay());
+  return formatDate(d);
+}
+
+// Shared shell for the three single-series bar-chart cards (Daily Calories /
+// Weekly Weight Lifted / Weekly Cardio Minutes) — the range-pill row, chart,
+// and summary row, or the empty state if there's nothing to plot yet. Each
+// card supplies its own idPrefix (for unique DOM ids across all three
+// charts on the same page), color, labels, and date-axis formatting (plain
+// day for the daily chart, "Wk of ..." for the weekly ones).
+function renderBarChartCard({ points, filteredPoints, idPrefix, selectedRange, pillClass, color, pillActiveBg, emptyIcon, emptyText, totalLabel, avgLabel, dateLabelFn }) {
+  if (points.length === 0) {
+    return `
+      <div style="text-align: center; padding: 20px 10px; color: var(--text-muted);">
+        <div style="font-size: 28px; margin-bottom: 6px;">${emptyIcon}</div>
+        <div style="font-size: 0.85rem;">${emptyText}</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div style="display: flex; gap: 6px; margin-bottom: 14px;">
+      ${Object.keys(RANGE_LABELS).map(key => `
+        <button class="${pillClass}" data-range="${key}" style="flex: 1; padding: 8px 4px; border-radius: var(--radius-md); border: 1px solid ${key === selectedRange ? color : 'var(--border-glass)'}; background: ${key === selectedRange ? pillActiveBg : 'rgba(255, 255, 255, 0.03)'}; color: ${key === selectedRange ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-weight: 700; font-size: 0.75rem; cursor: pointer; font-family: inherit; transition: all 0.2s ease;">
+          ${RANGE_LABELS[key]}
+        </button>
+      `).join('')}
+    </div>
+
+    <div id="${idPrefix}-chart-wrapper" style="position: relative;">
+      ${renderBarChartSVG(idPrefix, filteredPoints, color, dateLabelFn)}
+    </div>
+
+    ${renderBarChartSummaryRow(filteredPoints, color, totalLabel, avgLabel)}
+  `;
 }
 
 // Single source of truth for the chart's coordinate system — used both when
@@ -497,19 +623,22 @@ function setupWeightChartInteractivity(container, points) {
   hoverTarget.addEventListener('touchend', hide);
 }
 
-// Single source of truth for the bar chart's coordinate system — same
-// "layout function shared by render + hover" pattern as computeWeightChartLayout.
-// Unlike the weight line (a windowed/zoomed range so small fluctuations are
-// still visible), a bar chart's value axis always starts at 0 — anything
-// else exaggerates the differences between bars, since height/area is what's
-// actually being compared here, not just vertical position.
-function computeCalorieChartLayout(points) {
+// Single source of truth for a bar chart's coordinate system — same
+// "layout function shared by render + hover" pattern as computeWeightChartLayout,
+// generalized across the three single-series bar charts (Daily Calories /
+// Weekly Weight Lifted / Weekly Cardio Minutes) since they only differ in
+// color, labels, and date-axis formatting. Unlike the weight line (a
+// windowed/zoomed range so small fluctuations are still visible), a bar
+// chart's value axis always starts at 0 — anything else exaggerates the
+// differences between bars, since height/area is what's actually being
+// compared here, not just vertical position.
+function computeBarChartLayout(points) {
   const W = 300, H = 170;
   const padL = 32, padR = 10, padT = 14, padB = 26;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
 
-  const maxVal = Math.max(...points.map(p => p.calories), 1);
+  const maxVal = Math.max(...points.map(p => p.value), 1);
   const axisMax = maxVal * 1.15; // headroom so the tallest bar doesn't touch the top edge
 
   const slot = points.length > 0 ? plotW / points.length : plotW;
@@ -530,10 +659,10 @@ function roundedTopBarPath(x, width, top, bottom, radius) {
   return `M ${x} ${bottom} L ${x} ${(top + r).toFixed(1)} Q ${x} ${top.toFixed(1)} ${(x + r).toFixed(1)} ${top.toFixed(1)} L ${(x + width - r).toFixed(1)} ${top.toFixed(1)} Q ${(x + width).toFixed(1)} ${top.toFixed(1)} ${(x + width).toFixed(1)} ${(top + r).toFixed(1)} L ${(x + width).toFixed(1)} ${bottom} Z`;
 }
 
-function renderCalorieChartSVG(points) {
+function renderBarChartSVG(idPrefix, points, color, dateLabelFn) {
   if (points.length === 0) return '';
 
-  const { W, H, padL, padR, padT, plotW, plotH, axisMax, barWidth, xForIndex, yForValue, heightForValue } = computeCalorieChartLayout(points);
+  const { W, H, padL, padR, padT, plotW, plotH, axisMax, barWidth, xForIndex, yForValue, heightForValue } = computeBarChartLayout(points);
 
   // Y-axis: 4 evenly spaced reference gridlines from 0, recessive per the
   // dataviz skill — low-opacity lines, muted label ink, never competing
@@ -545,53 +674,53 @@ function renderCalorieChartSVG(points) {
     const y = yForValue(val);
     gridLines.push(`
       <line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
-      <text x="${(padL - 6).toFixed(1)}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--text-muted)">${Math.round(val)}</text>
+      <text x="${(padL - 6).toFixed(1)}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--text-muted)">${Math.round(val).toLocaleString()}</text>
     `);
   }
 
   // X-axis: a handful of evenly spaced date labels rather than one per bar,
-  // so they never collide regardless of how many logged days are in range.
+  // so they never collide regardless of how many points are in range.
   const xLabelCount = Math.min(4, points.length);
   const xLabelIndices = [...new Set(
     Array.from({ length: xLabelCount }, (_, t) => Math.round((t / (xLabelCount - 1 || 1)) * (points.length - 1)))
   )];
   const xLabels = xLabelIndices.map(idx => `
-    <text x="${xForIndex(idx).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="8" fill="var(--text-muted)">${formatShortMonthDay(points[idx].date)}</text>
+    <text x="${xForIndex(idx).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="8" fill="var(--text-muted)">${dateLabelFn(points[idx].date)}</text>
   `).join('');
 
   const floorY = padT + plotH;
   const bars = points.map((p, i) => {
     const x = xForIndex(i) - barWidth / 2;
-    const top = floorY - heightForValue(p.calories);
-    return `<path class="calorie-bar" data-index="${i}" d="${roundedTopBarPath(x, barWidth, top, floorY, 4)}" fill="var(--accent-rose)" opacity="0.85" />`;
+    const top = floorY - heightForValue(p.value);
+    return `<path class="${idPrefix}-bar" data-index="${i}" d="${roundedTopBarPath(x, barWidth, top, floorY, 4)}" fill="${color}" opacity="0.85" />`;
   }).join('');
 
   return `
-    <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; display: block; overflow: visible;" id="calorie-chart-svg">
+    <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; display: block; overflow: visible;" id="${idPrefix}-chart-svg">
       ${gridLines.join('')}
       ${bars}
       ${xLabels}
-      <rect id="calorie-hover-target" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" style="cursor: crosshair;" />
+      <rect id="${idPrefix}-hover-target" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" style="cursor: crosshair;" />
     </svg>
-    <div id="calorie-tooltip" style="position: absolute; display: none; pointer-events: none; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 5px 9px; font-size: 0.72rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; z-index: 10; box-shadow: var(--shadow-card); transform: translate(-50%, -100%);"></div>
+    <div id="${idPrefix}-tooltip" style="position: absolute; display: none; pointer-events: none; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 5px 9px; font-size: 0.72rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; z-index: 10; box-shadow: var(--shadow-card); transform: translate(-50%, -100%);"></div>
   `;
 }
 
-function renderCalorieSummaryRow(points) {
+function renderBarChartSummaryRow(points, color, totalLabel, avgLabel) {
   if (points.length === 0) return '';
-  const total = points.reduce((sum, p) => sum + p.calories, 0);
+  const total = points.reduce((sum, p) => sum + p.value, 0);
   const avg = Math.round(total / points.length);
 
   return `
     <div style="display: flex; justify-content: space-around; margin-top: 14px; text-align: center;">
       <div>
-        <div style="font-size: 1.3rem; font-weight: 800; color: var(--accent-rose);">${total.toLocaleString()}</div>
-        <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">TOTAL KCAL IN RANGE</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: ${color};">${Math.round(total).toLocaleString()}</div>
+        <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">${totalLabel}</div>
       </div>
       <div style="width: 1px; background: var(--border-glass);"></div>
       <div>
         <div style="font-size: 1.3rem; font-weight: 800; color: var(--text-primary);">${avg.toLocaleString()}</div>
-        <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">AVG PER LOGGED DAY</div>
+        <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">${avgLabel}</div>
       </div>
     </div>
   `;
@@ -600,14 +729,14 @@ function renderCalorieSummaryRow(points) {
 // Per-mark hover tooltip (not a crosshair — this is a bar chart, each mark
 // is its own discrete value, per the dataviz skill's interaction guidance).
 // Same re-query-fresh-every-render defensive pattern as the weight chart.
-function setupCalorieChartInteractivity(container, points) {
-  const svg = container.querySelector('#calorie-chart-svg');
-  const hoverTarget = container.querySelector('#calorie-hover-target');
+function setupBarChartInteractivity(idPrefix, container, points, dateLabelFn, tooltipUnit) {
+  const svg = container.querySelector(`#${idPrefix}-chart-svg`);
+  const hoverTarget = container.querySelector(`#${idPrefix}-hover-target`);
   if (!svg || !hoverTarget || points.length === 0) return;
 
-  const layout = computeCalorieChartLayout(points);
-  const tooltip = container.querySelector('#calorie-tooltip');
-  const bars = [...svg.querySelectorAll('.calorie-bar')];
+  const layout = computeBarChartLayout(points);
+  const tooltip = container.querySelector(`#${idPrefix}-tooltip`);
+  const bars = [...svg.querySelectorAll(`.${idPrefix}-bar`)];
 
   function nearestIndexForClientX(clientX) {
     const rect = svg.getBoundingClientRect();
@@ -627,13 +756,13 @@ function setupCalorieChartInteractivity(container, points) {
   function showAt(index) {
     const p = points[index];
     const x = layout.xForIndex(index);
-    const y = layout.yForValue(p.calories);
+    const y = layout.yForValue(p.value);
 
     bars.forEach((bar, i) => bar.setAttribute('opacity', i === index ? '1' : '0.85'));
 
     if (tooltip) {
       tooltip.style.display = 'block';
-      tooltip.textContent = `${formatShortMonthDay(p.date)} · ${p.calories.toLocaleString()} kcal`;
+      tooltip.textContent = `${dateLabelFn(p.date)} · ${Math.round(p.value).toLocaleString()} ${tooltipUnit}`;
       tooltip.style.left = `${((x / layout.W) * 100).toFixed(1)}%`;
       tooltip.style.top = `${((y / layout.H) * 100).toFixed(1)}%`;
     }
