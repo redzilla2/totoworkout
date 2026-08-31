@@ -19,6 +19,17 @@ let restTimerVisible = false;
 // full re-renders that fire on every set-check / add-set / etc.
 let elapsedTimerId = null;
 let elapsedTimerSessionId = null;
+// Latest tick function from startElapsedTimer, so the visibilitychange
+// listener below can force an immediate refresh. It already recomputes from
+// session.startTime each tick rather than counting up, so a throttled
+// interval can't make it *wrong* the way the old RestTimer could — just
+// stale-looking until the next tick, which itself might be delayed by the
+// same throttling. This forces that catch-up the instant it's looked at again.
+let elapsedTimerTick = null;
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && elapsedTimerTick) elapsedTimerTick();
+});
 
 export function renderActiveWorkoutView(container) {
   const state = appState.getState();
@@ -63,6 +74,26 @@ export function renderActiveWorkoutView(container) {
       }
     });
     return;
+  }
+
+  // Recover an in-progress rest timer from the persisted session rather than
+  // the (ephemeral, module-level) restTimerVisible/restingExerciseIndex —
+  // covers not just a normal re-render but a full page reload too, which
+  // mobile browsers can trigger on their own after the screen's been off/the
+  // tab backgrounded for a while, wiping every module-level JS variable in
+  // this file. restTimerEndsAt is an absolute timestamp, so it's still
+  // correct however long the reload took to happen.
+  if (session.restTimerEndsAt && session.exercises[session.restTimerExerciseIndex] && session.restTimerEndsAt > Date.now()) {
+    restingExerciseIndex = session.restTimerExerciseIndex;
+    restTimerVisible = true;
+  } else if (session.restTimerEndsAt) {
+    // Rest period fully elapsed while nothing was watching — clear it rather
+    // than resurrecting a stale countdown (or replaying the horn) for rest
+    // that's long since over.
+    session.restTimerEndsAt = null;
+    session.restTimerExerciseIndex = null;
+    restTimerVisible = false;
+    restingExerciseIndex = null;
   }
 
   let activeVolume = 0;
@@ -192,6 +223,14 @@ export function renderActiveWorkoutView(container) {
 
   startElapsedTimer(session, container);
 
+  // Reattach the countdown to the freshly-rendered widget — covers both a
+  // normal re-render (set-check, add-set, etc. all rebuild container.innerHTML
+  // out from under any running timer's DOM references) and resuming one
+  // recovered from the persisted session above.
+  if (restTimerVisible && session.restTimerEndsAt) {
+    startRestCountdown(container, session, session.restTimerEndsAt);
+  }
+
   // Drag-to-reorder exercise cards (handle-only, so scrolling the rest of
   // the page still works normally on touch).
   enableDragReorder(container, {
@@ -232,24 +271,24 @@ export function renderActiveWorkoutView(container) {
       const targetSet = session.exercises[exIdx].sets[setIdx];
       targetSet.completed = !targetSet.completed;
 
-      appState.updateActiveWorkout(session);
-
       // Mark which exercise should show the widget *before* re-rendering, so the
-      // render below actually includes it in that exercise's card.
+      // render below actually includes it in that exercise's card — and persist
+      // the countdown's absolute end time on the session itself (not just the
+      // module-level vars below), so it survives a full page reload, not only
+      // a re-render. See the "Recover an in-progress rest timer" block above.
       if (targetSet.completed) {
         restingExerciseIndex = exIdx;
         restTimerVisible = true;
+        session.restTimerEndsAt = Date.now() + (session.exercises[exIdx].restSeconds || 60) * 1000;
+        session.restTimerExerciseIndex = exIdx;
       }
 
-      // Re-render first so the countdown (started below) is the last thing to touch
-      // the DOM — starting it before this render meant the render's static "00:00"
-      // placeholder would immediately stomp the correct just-started digits.
+      appState.updateActiveWorkout(session);
+      // Rebuilds the DOM (including the "00:00" placeholder) and — since
+      // restTimerVisible/session.restTimerEndsAt are already set above —
+      // starts the countdown against the freshly-rendered widget itself, so
+      // there's no window where a stale placeholder could stomp real digits.
       renderActiveWorkoutView(container);
-
-      // Trigger Rest Timer when completing a set, using this exercise's own rest time
-      if (targetSet.completed) {
-        startRestCountdown(session.exercises[exIdx].restSeconds || 60, container);
-      }
     });
   });
 
@@ -339,6 +378,12 @@ export function renderActiveWorkoutView(container) {
           if (currentRestTimer) currentRestTimer.stop();
           restTimerVisible = false;
           restingExerciseIndex = null;
+          session.restTimerEndsAt = null;
+          session.restTimerExerciseIndex = null;
+        } else if (restingExerciseIndex !== null && restingExerciseIndex > exIdx) {
+          // The resting exercise shifts up one slot once this earlier one is spliced out.
+          restingExerciseIndex--;
+          session.restTimerExerciseIndex = restingExerciseIndex;
         }
         session.exercises.splice(exIdx, 1);
         appState.updateActiveWorkout(session);
@@ -385,7 +430,11 @@ export function renderActiveWorkoutView(container) {
 
   // Rest Timer Controls
   container.querySelector('#add-10s-btn')?.addEventListener('click', () => {
-    if (currentRestTimer) currentRestTimer.addTime(10);
+    if (currentRestTimer) {
+      currentRestTimer.addTime(10);
+      session.restTimerEndsAt = currentRestTimer.getEndTime();
+      appState.updateActiveWorkout(session);
+    }
   });
 
   container.querySelector('#skip-rest-btn')?.addEventListener('click', () => {
@@ -393,6 +442,9 @@ export function renderActiveWorkoutView(container) {
       currentRestTimer.stop();
       restTimerVisible = false;
       restingExerciseIndex = null;
+      session.restTimerEndsAt = null;
+      session.restTimerExerciseIndex = null;
+      appState.updateActiveWorkout(session);
       const widget = container.querySelector('#rest-timer-widget');
       if (widget) widget.style.display = 'none';
     }
@@ -416,6 +468,7 @@ function startElapsedTimer(session, container) {
     const secs = elapsedSecs % 60;
     el.textContent = `⏱️ ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
+  elapsedTimerTick = updateDigits;
   updateDigits();
 
   if (elapsedTimerId && elapsedTimerSessionId === session.id) return;
@@ -430,9 +483,14 @@ function stopElapsedTimer() {
     elapsedTimerId = null;
   }
   elapsedTimerSessionId = null;
+  elapsedTimerTick = null;
 }
 
-function startRestCountdown(seconds, container) {
+// `endTime` is an absolute timestamp (Date.now() + restSeconds*1000 for a
+// freshly-triggered rest, or session.restTimerEndsAt as-is when resuming one
+// recovered from the persisted session) — see RestTimer in utils/timer.js
+// for why an absolute end time rather than a duration.
+function startRestCountdown(container, session, endTime) {
   if (currentRestTimer) currentRestTimer.stop();
 
   // Re-query the widget/digits elements fresh on every tick rather than caching
@@ -458,12 +516,15 @@ function startRestCountdown(seconds, container) {
     () => {
       restTimerVisible = false;
       restingExerciseIndex = null;
+      session.restTimerEndsAt = null;
+      session.restTimerExerciseIndex = null;
+      appState.updateActiveWorkout(session);
       const widget = container.querySelector('#rest-timer-widget');
       if (widget) widget.style.display = 'none';
     }
   );
 
-  currentRestTimer.start(seconds);
+  currentRestTimer.start(null, endTime);
 }
 
 // Renders the loggable rows for one exercise card: a single minutes/calories

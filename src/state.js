@@ -481,6 +481,13 @@ class AppState {
       routineId: routine.id || null,
       notes: '',
       userLogged: true,
+      // Absolute end-timestamp (ms) of an in-progress rest countdown, and
+      // which exercise it's for — persisted here (not just in ActiveWorkoutView's
+      // module-level vars) so the countdown survives a full page reload, which
+      // mobile browsers can trigger on their own after the screen's been off
+      // for a while. See utils/timer.js RestTimer and ActiveWorkoutView.js.
+      restTimerEndsAt: null,
+      restTimerExerciseIndex: null,
       exercises: routine.exercises.map(exItem => {
         const exMeta = this.state.exercises.find(e => e.id === exItem.exerciseId) || { name: exItem.exerciseId, category: routine.category };
         const cardio = isCardioCategory(exMeta.category);
