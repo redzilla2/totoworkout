@@ -224,3 +224,33 @@ export function pickProgram(programs, daysPerWeek, equipment) {
   });
   return closest;
 }
+
+/**
+ * Builds <optgroup>/<option> markup for a routine-picker <select>, grouping
+ * routines by the program prefix in their name (the part before " - ", per
+ * the "{Program} {N} Day - {Workout}" convention) so a dropdown of 20+
+ * built-in routines doesn't read as one giant flat list. Routines with no
+ * such prefix (user-created ones) fall into "My Routines". Shared by the
+ * Active tab's empty-state session picker and the Calendar's quick-log
+ * modal's routine picker — callers prepend their own leading option (a
+ * "build your own"/"build manually" placeholder) since its value and
+ * wording differ between the two.
+ */
+export function renderRoutineOptionGroups(routines) {
+  const groups = new Map();
+  routines.forEach(r => {
+    const sepIndex = r.name.indexOf(' - ');
+    const groupLabel = sepIndex > -1 ? r.name.slice(0, sepIndex) : 'My Routines';
+    const optionLabel = sepIndex > -1 ? r.name.slice(sepIndex + 3) : r.name;
+    if (!groups.has(groupLabel)) groups.set(groupLabel, []);
+    groups.get(groupLabel).push({ id: r.id, icon: r.icon || '🏋️', label: optionLabel });
+  });
+
+  let html = '';
+  groups.forEach((options, groupLabel) => {
+    html += `<optgroup label="${groupLabel}">`;
+    html += options.map(o => `<option value="${o.id}">${o.icon} ${o.label}</option>`).join('');
+    html += `</optgroup>`;
+  });
+  return html;
+}
