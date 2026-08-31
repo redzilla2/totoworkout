@@ -173,7 +173,7 @@ export function renderActiveWorkoutView(container) {
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
             <span style="font-size: 0.75rem; color: var(--text-muted);">⏱️ Rest:</span>
             <select class="form-select rest-time-select" data-ex="${exIndex}" style="width: auto; padding: 4px 8px; font-size: 0.78rem;">
-              ${renderRestOptions(ex.restSeconds || 60)}
+              ${renderRestOptions(ex.restSeconds || 120)}
             </select>
           </div>
 
@@ -279,7 +279,7 @@ export function renderActiveWorkoutView(container) {
       if (targetSet.completed) {
         restingExerciseIndex = exIdx;
         restTimerVisible = true;
-        session.restTimerEndsAt = Date.now() + (session.exercises[exIdx].restSeconds || 60) * 1000;
+        session.restTimerEndsAt = Date.now() + (session.exercises[exIdx].restSeconds || 120) * 1000;
         session.restTimerExerciseIndex = exIdx;
       }
 
@@ -420,7 +420,12 @@ export function renderActiveWorkoutView(container) {
       name: exMeta.name,
       category: exMeta.category || 'General',
       repRange: null,
-      restSeconds: exMeta.defaultRest || 60,
+      // Flat 2:00 default, same as every exercise a routine starts with
+      // (see startWorkoutFromRoutine in state.js) — adjustable per exercise
+      // from the rest selector either way, this just keeps the starting
+      // point consistent instead of varying by each exercise's own
+      // defaultRest in the library (60-150s depending on the move).
+      restSeconds: 120,
       sets: sets
     });
 
