@@ -156,6 +156,17 @@ export function renderCalendarView(container) {
                   <span style="font-size: 0.72rem; color: var(--text-muted);">Enter weights & reps below</span>
                 </div>
 
+                <div style="background: rgba(15, 23, 42, 0.6); padding: 10px; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.05);">
+                  <label class="form-label" style="margin-bottom: 4px;">🔥 Actual Calories Burned (optional)</label>
+                  <input type="number" class="form-input actual-calories-input" data-wid="${w.id}"
+                    ${!w.caloriesEstimated && w.totalCalories ? `value="${w.totalCalories}"` : ''}
+                    placeholder="${w.caloriesEstimated ? `Estimated: ${(w.totalCalories || 0).toLocaleString()} kcal` : 'Enter a reading'}"
+                    min="0" style="padding: 6px 8px; font-size: 0.85rem;">
+                  <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">
+                    From a fitness tracker, this overrides the estimate above — leave blank to keep it auto-calculated from your sets.
+                  </div>
+                </div>
+
                 ${w.exercises && w.exercises.length > 0 ? w.exercises.map((ex, exIdx) => {
                   const cardio = isCardioCategory(ex.category);
                   return `
@@ -388,6 +399,20 @@ export function renderCalendarView(container) {
       workoutLog.totalVolume = newTotalVolume;
       workoutLog.totalCalories = newTotalCalories;
       workoutLog.caloriesEstimated = hasStrengthSets;
+
+      // A reading from an actual fitness tracker (Garmin, etc.) beats any
+      // estimate — overrides whatever was just computed above and drops the
+      // "(est.)" label, since this is now a measured figure, not a guess.
+      // Left blank, the auto-calculated value from above stands as-is.
+      const actualCaloriesInput = card.querySelector('.actual-calories-input');
+      const actualCalories = actualCaloriesInput && actualCaloriesInput.value !== ''
+        ? parseFloat(actualCaloriesInput.value)
+        : null;
+      if (actualCalories !== null && !Number.isNaN(actualCalories)) {
+        workoutLog.totalCalories = actualCalories;
+        workoutLog.caloriesEstimated = false;
+      }
+
       workoutLog.userLogged = true; // Mark as logged for streak increment!
 
       appState.addWorkoutLog(workoutLog);
