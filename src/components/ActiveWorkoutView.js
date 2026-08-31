@@ -1,6 +1,6 @@
 import { appState } from '../state.js';
 import { RestTimer } from '../utils/timer.js';
-import { isCardioCategory } from '../utils/helpers.js';
+import { isCardioCategory, renderRoutineOptionGroups } from '../utils/helpers.js';
 import { enableDragReorder, moveArrayItem } from '../utils/dragReorder.js';
 
 let currentRestTimer = null;
@@ -593,27 +593,11 @@ function renderRestOptions(selectedSeconds) {
 }
 
 // Builds the empty-state session picker: a "build your own" option up top,
-// followed by every saved routine grouped by program (the part of its name
-// before " - ", per the "{Program} {N} Day - {Workout}" convention) so a
-// dropdown of 18+ built-in routines doesn't read as one giant flat list.
-// Routines with no such prefix (user-created ones) fall into "My Routines".
+// followed by every saved routine grouped by program — see
+// renderRoutineOptionGroups in utils/helpers.js (shared with the Calendar's
+// quick-log modal routine picker) for the grouping logic itself.
 function renderSessionPickerOptions(routines) {
-  const groups = new Map();
-  routines.forEach(r => {
-    const sepIndex = r.name.indexOf(' - ');
-    const groupLabel = sepIndex > -1 ? r.name.slice(0, sepIndex) : 'My Routines';
-    const optionLabel = sepIndex > -1 ? r.name.slice(sepIndex + 3) : r.name;
-    if (!groups.has(groupLabel)) groups.set(groupLabel, []);
-    groups.get(groupLabel).push({ id: r.id, icon: r.icon || '🏋️', label: optionLabel });
-  });
-
-  let html = `<option value="blank">🆕 Blank Session (Build Your Own)</option>`;
-  groups.forEach((options, groupLabel) => {
-    html += `<optgroup label="${groupLabel}">`;
-    html += options.map(o => `<option value="${o.id}">${o.icon} ${o.label}</option>`).join('');
-    html += `</optgroup>`;
-  });
-  return html;
+  return `<option value="blank">🆕 Blank Session (Build Your Own)</option>` + renderRoutineOptionGroups(routines);
 }
 
 function renderSessionExerciseOptions(list) {

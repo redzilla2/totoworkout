@@ -1,5 +1,5 @@
 import { appState } from '../state.js';
-import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg } from '../utils/helpers.js';
+import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg, renderRoutineOptionGroups } from '../utils/helpers.js';
 
 // Logged-workout cards default to a condensed summary (they can otherwise
 // run to hundreds of pixels tall — a full exercise/set editor per card) and
@@ -570,8 +570,40 @@ function renderQuickLogExerciseOptions(list) {
   return list.map(ex => `<option value="${ex.id}">${ex.name} (${ex.category})</option>`).join('');
 }
 
+// Read-only preview of what Quick-Add a Built Routine will log — same
+// icon/badge/exercise-list styling as the "scheduled — not logged yet"
+// routine card elsewhere in this file, for visual consistency.
+function renderQuickLogRoutinePreview(routine, exercises) {
+  return `
+    <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 12px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <span style="font-weight: 800;">${routine.icon || '🏋️'} ${routine.name}</span>
+        <span class="badge" style="background: ${routine.color || '#6366f1'}22; color: ${routine.color || '#6366f1'};">${routine.category}</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        ${(routine.exercises || []).map(exItem => {
+          const exMeta = exercises.find(e => e.id === exItem.exerciseId);
+          const exName = exMeta ? exMeta.name : exItem.exerciseId;
+          const cardio = isCardioCategory(exMeta?.category);
+          const detail = cardio
+            ? `${exItem.defaultMinutes || 20} min`
+            : `${exItem.defaultSets || 3} × ${exItem.repRange ? (exItem.repRange === 'triset' ? 'triset' : `${exItem.repRange} reps`) : `${exItem.defaultReps || 10} reps`}`;
+          return `
+            <div style="display: flex; justify-content: space-between; font-size: 0.82rem;">
+              <span>${cardio ? '🏃' : '💪'} ${exName}</span>
+              <span style="color: var(--text-muted);">${detail}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
 function openQuickLogModal(dateStr) {
-  const exercises = appState.getState().exercises || [];
+  const state = appState.getState();
+  const exercises = state.exercises || [];
+  const routines = state.routines || [];
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
@@ -583,42 +615,54 @@ function openQuickLogModal(dateStr) {
 
       <form id="quick-log-form">
         <div class="form-group">
+          <label class="form-label">⚡ Quick-Add a Built Routine</label>
+          <select class="form-select" id="log-routine-select">
+            <option value="">— Build Manually Below —</option>
+            ${renderRoutineOptionGroups(routines)}
+          </select>
+        </div>
+
+        <div class="form-group">
           <label class="form-label">Workout Routine Name</label>
           <input type="text" class="form-input" id="log-name" placeholder="e.g. Upper Body Workout" required value="Custom Workout">
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Category</label>
-          <select class="form-select" id="log-category">
-            <option value="Push / Upper">Push / Upper</option>
-            <option value="Legs / Core">Legs / Core</option>
-            <option value="Arms">Arms</option>
-            <option value="Full Body" selected>Full Body</option>
-            <option value="Cardio">Cardio</option>
-          </select>
-        </div>
+        <div id="log-routine-preview" style="display: none; margin-bottom: 16px;"></div>
 
-        <div class="form-group">
-          <label class="form-label">Select Exercise to Include</label>
-          <input type="text" class="form-input" id="log-exercise-search" placeholder="🔍 Search exercises by name or muscle group..." style="margin-bottom: 8px;">
-          <select class="form-select" id="log-exercise-select" size="6" style="height: auto;">
-            ${renderQuickLogExerciseOptions(exercises)}
-          </select>
-        </div>
-
-        <div id="log-strength-fields" class="form-group">
-          <label class="form-label">Default Set Weight (kg)</label>
-          <input type="number" class="form-input" id="log-default-weight" value="20" step="0.5" min="0">
-        </div>
-
-        <div id="log-cardio-fields" style="display: none; gap: 8px; margin-bottom: 16px;">
-          <div style="flex: 1;">
-            <label class="form-label">Minutes</label>
-            <input type="number" class="form-input" id="log-minutes" value="20" min="1">
+        <div id="manual-exercise-section">
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-select" id="log-category">
+              <option value="Push / Upper">Push / Upper</option>
+              <option value="Legs / Core">Legs / Core</option>
+              <option value="Arms">Arms</option>
+              <option value="Full Body" selected>Full Body</option>
+              <option value="Cardio">Cardio</option>
+            </select>
           </div>
-          <div style="flex: 1;">
-            <label class="form-label">Calories</label>
-            <input type="number" class="form-input" id="log-calories" value="150" min="0">
+
+          <div class="form-group">
+            <label class="form-label">Select Exercise to Include</label>
+            <input type="text" class="form-input" id="log-exercise-search" placeholder="🔍 Search exercises by name or muscle group..." style="margin-bottom: 8px;">
+            <select class="form-select" id="log-exercise-select" size="6" style="height: auto;">
+              ${renderQuickLogExerciseOptions(exercises)}
+            </select>
+          </div>
+
+          <div id="log-strength-fields" class="form-group">
+            <label class="form-label">Default Set Weight (kg)</label>
+            <input type="number" class="form-input" id="log-default-weight" value="20" step="0.5" min="0">
+          </div>
+
+          <div id="log-cardio-fields" style="display: none; gap: 8px; margin-bottom: 16px;">
+            <div style="flex: 1;">
+              <label class="form-label">Minutes</label>
+              <input type="number" class="form-input" id="log-minutes" value="20" min="1">
+            </div>
+            <div style="flex: 1;">
+              <label class="form-label">Calories</label>
+              <input type="number" class="form-input" id="log-calories" value="150" min="0">
+            </div>
           </div>
         </div>
 
@@ -633,6 +677,30 @@ function openQuickLogModal(dateStr) {
   `;
 
   document.body.appendChild(overlay);
+
+  // Switches between "build one exercise manually" and "log every exercise
+  // from a saved routine at once" — picking a routine fills the name,
+  // swaps the manual fields for a read-only preview of what'll be logged,
+  // and changes what Save actually builds (see the submit handler below).
+  function updateRoutineModeVisibility() {
+    const routineId = overlay.querySelector('#log-routine-select').value;
+    const routine = routines.find(r => r.id === routineId);
+    const manualSection = overlay.querySelector('#manual-exercise-section');
+    const preview = overlay.querySelector('#log-routine-preview');
+
+    if (routine) {
+      overlay.querySelector('#log-name').value = routine.name;
+      manualSection.style.display = 'none';
+      preview.style.display = 'block';
+      preview.innerHTML = renderQuickLogRoutinePreview(routine, exercises);
+    } else {
+      manualSection.style.display = 'block';
+      preview.style.display = 'none';
+      preview.innerHTML = '';
+    }
+  }
+
+  overlay.querySelector('#log-routine-select')?.addEventListener('change', updateRoutineModeVisibility);
 
   // Toggles between the Default Weight field and the Minutes/Calories fields
   // based on the currently-selected exercise's category — cardio is logged
@@ -675,8 +743,74 @@ function openQuickLogModal(dateStr) {
   overlay.querySelector('#quick-log-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const name = overlay.querySelector('#log-name').value;
-    const category = overlay.querySelector('#log-category').value;
     const notes = overlay.querySelector('#log-notes').value;
+
+    // Quick-Add a Built Routine was picked — log every one of its exercises
+    // at once (each set marked completed, using the routine's own
+    // sets/reps/weight defaults) instead of the single manually-picked
+    // exercise below.
+    const pickedRoutineId = overlay.querySelector('#log-routine-select').value;
+    const pickedRoutine = routines.find(r => r.id === pickedRoutineId);
+    if (pickedRoutine) {
+      const loggedExercises = pickedRoutine.exercises.map(exItem => {
+        const exMeta = exercises.find(e => e.id === exItem.exerciseId) || { name: exItem.exerciseId, category: pickedRoutine.category };
+        const cardio = isCardioCategory(exMeta.category);
+        const sets = cardio
+          ? [{ setNum: 1, minutes: exItem.defaultMinutes || 20, calories: exItem.defaultCalories || 150, completed: true }]
+          : Array.from({ length: exItem.defaultSets || 3 }, (_, i) => ({
+              setNum: i + 1, reps: exItem.defaultReps || 10, weight: exItem.defaultWeight || 0, completed: true
+            }));
+        return { name: exMeta.name, category: exMeta.category || 'General', repRange: exItem.repRange || null, sets };
+      });
+
+      let totalVolume = 0, totalCalories = 0, cardioMinutes = 0, hasStrengthSets = false;
+      loggedExercises.forEach(ex => {
+        const cardio = isCardioCategory(ex.category);
+        ex.sets.forEach(s => {
+          if (cardio) {
+            totalCalories += (s.calories || 0);
+            cardioMinutes += (s.minutes || 0);
+          } else {
+            totalVolume += (s.reps * (s.weight || 1));
+            hasStrengthSets = true;
+          }
+        });
+      });
+      // No live-tracked duration for a routine logged after the fact — a
+      // rough per-exercise estimate (rest periods included) stands in, same
+      // spirit as the flat 45-minute assumption the single-exercise path
+      // below uses. See utils/helpers.js for the MET formula and its caveats.
+      const durationMinutes = Math.max(30, loggedExercises.length * 8);
+      if (hasStrengthSets) {
+        const strengthMinutes = Math.max(0, durationMinutes - cardioMinutes);
+        totalCalories += estimateStrengthCalories(strengthMinutes, getLatestBodyWeightKg(appState.getState()));
+      }
+
+      appState.addWorkoutLog({
+        id: 'log_' + Date.now(),
+        date: dateStr,
+        name: name,
+        category: pickedRoutine.category,
+        color: pickedRoutine.color || '#6366f1',
+        icon: pickedRoutine.icon || '🏋️',
+        // Tags this log with the routine it came from, same as a live
+        // session started from a routine — lets the calendar recognize this
+        // specific routine as done for the day (see getScheduledRoutine).
+        routineId: pickedRoutine.id,
+        durationMinutes: durationMinutes,
+        totalVolume: totalVolume,
+        totalCalories: totalCalories,
+        caloriesEstimated: hasStrengthSets,
+        notes: notes,
+        userLogged: true,
+        exercises: loggedExercises
+      });
+
+      document.body.removeChild(overlay);
+      return;
+    }
+
+    const category = overlay.querySelector('#log-category').value;
     const exerciseId = overlay.querySelector('#log-exercise-select').value;
     const exMeta = exercises.find(e => e.id === exerciseId);
     const cardio = isCardioCategory(exMeta?.category);
