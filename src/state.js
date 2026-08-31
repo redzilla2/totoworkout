@@ -184,7 +184,14 @@ class AppState {
       // often doesn't leave enough time for an in-flight fetch to complete), so
       // flushing here closes the race instead of waiting out the debounce.
       document.addEventListener('visibilitychange', () => {
-        if (document.hidden) this.flushCloudSave();
+        if (document.hidden) {
+          this.flushCloudSave();
+        } else {
+          // Coming back to this tab — pull whatever changed elsewhere while
+          // it was away (see refreshFromCloudIfStale for why this doesn't
+          // just call loadCloudState()).
+          this.refreshFromCloudIfStale();
+        }
       });
       window.addEventListener('pagehide', () => this.flushCloudSave());
     }
@@ -240,6 +247,64 @@ class AppState {
       await this.saveToCloud();
       this.notifyListeners();
     }
+  }
+
+  // Silently re-pulls the synced data when this tab becomes visible again
+  // after being backgrounded — the read counterpart to flushCloudSave() on
+  // the way out. Without this, a tab you left open only ever sees the cloud
+  // as of whenever it first loaded: log a workout on your phone, and an
+  // already-open desktop tab has no way to know until you manually refresh
+  // it. See the visibilitychange listener in the constructor.
+  //
+  // Deliberately narrower than loadCloudState(): it updates the actual
+  // synced data (routines/schedule/history/bodyWeightLogs/
+  // dismissedScheduleDates/onboardingCompleted/userProfile) but leaves
+  // currentView/selectedDate/activeWorkout exactly as this tab already has
+  // them. Those three are "what this tab is looking at right now," not data
+  // to sync — overwriting them here would yank you to whatever page/date
+  // another device happened to have open last, every single time you
+  // switch back to this tab. (Keep this field list in sync with
+  // loadCloudState() above if the schema grows.)
+  async refreshFromCloudIfStale() {
+    if (!isSupabaseConfigured || !this.session) return;
+    // A local change that hasn't reached the cloud yet takes priority over
+    // a background refresh — skip it rather than risk clobbering that
+    // change with a stale cloud snapshot. The debounced save (or the next
+    // hide-triggered flush) will catch up on its own.
+    if (this.cloudSaveDirty) return;
+
+    const { data, error } = await supabase
+      .from('app_state')
+      .select('data')
+      .eq('user_id', this.session.user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to refresh cloud state:', error);
+      return;
+    }
+    if (!data || !data.data) return;
+    // Re-check after the fetch too — an edit could have landed locally
+    // while it was in flight.
+    if (this.cloudSaveDirty) return;
+
+    const cloud = data.data;
+    const { currentView, selectedDate, activeWorkout } = this.state;
+    this.state = {
+      exercises: DEFAULT_EXERCISES,
+      routines: syncBuiltInRoutineMetadata(cloud.routines) || DEFAULT_ROUTINES,
+      schedule: sanitizeSchedule(cloud.schedule || defaultSchedule()),
+      history: cloud.history || [],
+      bodyWeightLogs: cloud.bodyWeightLogs || [],
+      dismissedScheduleDates: cloud.dismissedScheduleDates || [],
+      onboardingCompleted: cloud.onboardingCompleted !== undefined ? cloud.onboardingCompleted : true,
+      userProfile: cloud.userProfile || null,
+      currentView,
+      selectedDate,
+      activeWorkout
+    };
+    this.saveLocal();
+    this.notifyListeners();
   }
 
   needsAuth() {
