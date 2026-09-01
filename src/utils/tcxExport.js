@@ -1,7 +1,7 @@
 /**
  * Builds a minimal, valid Garmin Training Center Database (.tcx) XML
- * document for one logged cardio workout — the file format Strava (and
- * most other fitness platforms) natively import.
+ * document for one logged workout — the file format Strava (and most
+ * other fitness platforms) natively import.
  *
  * Deliberately TCX rather than the raw binary .fit format: .fit is
  * Garmin's own byte-level encoding (definition messages, data messages, a
@@ -10,11 +10,13 @@
  * produces a file that just silently fails to import with no useful error.
  * TCX is plain, well-documented XML that gets the same result into Strava.
  *
- * Also deliberately cardio-only: Strava's file import (fit/tcx/gpx alike)
- * is built around continuous time-series activities — a timeline with a
- * duration, not discrete sets/reps/weight. A strength session has no
- * meaningful representation in that model; a cardio session (duration +
- * calories + an activity type) maps onto it directly.
+ * Strava's file import (fit/tcx/gpx alike) is fundamentally built around a
+ * continuous timeline — a duration, not discrete sets/reps/weight — so a
+ * strength session can only ever export as a generic duration+calories
+ * summary here, same as it'd show up if you logged it as a manual "Weight
+ * Training" activity in Strava directly. Cardio exports the same way, just
+ * with a specific activity type (Running/Biking) inferred where possible.
+ * See getCardioPortion vs getWholeSessionPortion below.
  */
 
 // Trackpoints need *some* start-of-day clock time — this app only tracks
@@ -64,19 +66,43 @@ export function getCardioPortion(workoutLog, isCardioCategoryFn) {
     });
   });
   if (minutes <= 0) return null;
-  return { minutes, calories, exerciseNames };
+  return { minutes, calories, exerciseNames, isGenericSummary: false };
 }
 
-/** Builds the TCX XML string for one logged workout's cardio portion. */
-export function buildCardioTcx(workoutLog, cardioPortion) {
+/**
+ * Fallback for a session with no cardio component at all (pure strength) —
+ * exports the log's own total duration/calories as a generic activity,
+ * same shape a manually-added Strava "Weight Training" entry would have.
+ * Flagged isGenericSummary so buildActivityTcx's notes can be upfront that
+ * this is a duration+calories summary, not a set-by-set record — the file
+ * format has no way to carry that regardless of what wrote it.
+ */
+export function getWholeSessionPortion(workoutLog) {
+  const minutes = workoutLog.durationMinutes || 0;
+  if (minutes <= 0) return null;
+  return {
+    minutes,
+    calories: workoutLog.totalCalories || 0,
+    exerciseNames: (workoutLog.exercises || []).map(ex => ex.name),
+    isGenericSummary: true
+  };
+}
+
+/** Builds the TCX XML string for one logged workout (or just its cardio
+ * portion — see getCardioPortion vs getWholeSessionPortion above). */
+export function buildActivityTcx(workoutLog, portion) {
   const [y, m, d] = workoutLog.date.split('-').map(Number);
   const start = new Date(y, m - 1, d, PLACEHOLDER_HOUR, 0, 0);
-  const end = new Date(start.getTime() + cardioPortion.minutes * 60000);
+  const end = new Date(start.getTime() + portion.minutes * 60000);
   const startIso = start.toISOString().replace(/\.\d{3}Z$/, 'Z');
   const endIso = end.toISOString().replace(/\.\d{3}Z$/, 'Z');
-  const totalSeconds = Math.round(cardioPortion.minutes * 60);
-  const sport = inferTcxSport(cardioPortion.exerciseNames);
-  const notes = xmlEscape(`${cardioPortion.exerciseNames.join(', ') || workoutLog.name} — logged in TotoWorkouts`);
+  const totalSeconds = Math.round(portion.minutes * 60);
+  const sport = inferTcxSport(portion.exerciseNames);
+  const notes = xmlEscape(
+    portion.isGenericSummary
+      ? `${workoutLog.name} — logged in TotoWorkouts (duration/calorie summary; set/rep/weight detail isn't carried by this file format)`
+      : `${portion.exerciseNames.join(', ') || workoutLog.name} — logged in TotoWorkouts`
+  );
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd">
@@ -86,7 +112,7 @@ export function buildCardioTcx(workoutLog, cardioPortion) {
       <Lap StartTime="${startIso}">
         <TotalTimeSeconds>${totalSeconds}</TotalTimeSeconds>
         <DistanceMeters>0</DistanceMeters>
-        <Calories>${Math.round(cardioPortion.calories)}</Calories>
+        <Calories>${Math.round(portion.calories)}</Calories>
         <Intensity>Active</Intensity>
         <TriggerMethod>Manual</TriggerMethod>
         <Track>

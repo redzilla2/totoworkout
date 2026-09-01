@@ -1,6 +1,6 @@
 import { appState } from '../state.js';
 import { formatDisplayDate, calculateStreak, calculateTotalVolume, getScheduledRoutine, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg, renderRoutineOptionGroups } from '../utils/helpers.js';
-import { getCardioPortion, buildCardioTcx, downloadTcx } from '../utils/tcxExport.js';
+import { getCardioPortion, getWholeSessionPortion, buildActivityTcx, downloadTcx } from '../utils/tcxExport.js';
 
 // Logged-workout cards default to a condensed summary (they can otherwise
 // run to hundreds of pixels tall — a full exercise/set editor per card) and
@@ -128,7 +128,14 @@ export function renderCalendarView(container) {
         <div style="display: flex; flex-direction: column; gap: 16px; ${scheduledRoutine ? 'margin-bottom: 16px;' : ''}">
           ${selectedDateWorkouts.map(w => {
             const expanded = expandedLogIds.has(w.id);
+            // Cardio content exports precisely (its own minutes/calories,
+            // and a specific activity type where the exercise name gives it
+            // away); a session with none falls back to a generic
+            // duration+calories summary of the whole thing — still useful
+            // to get *something* logged in Strava, just without set detail
+            // the file format has no way to carry regardless.
             const cardioPortion = getCardioPortion(w, isCardioCategory);
+            const exportPortion = cardioPortion || getWholeSessionPortion(w);
             return `
             <div class="workout-card-editor" data-id="${w.id}" style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-glass); border-left: 4px solid ${w.color || '#6366f1'}; border-radius: var(--radius-md); padding: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
@@ -146,9 +153,9 @@ export function renderCalendarView(container) {
                 ${w.totalCalories ? `<span>🔥 <strong style="color: var(--accent-rose);">${w.totalCalories.toLocaleString()} kcal</strong>${w.caloriesEstimated ? ' <span style="color: var(--text-muted); font-weight: 400;">(est.)</span>' : ''}</span>` : ''}
               </div>
 
-              ${cardioPortion ? `
-                <button class="export-tcx-btn" data-id="${w.id}" title="Export the cardio portion as a .tcx file for Strava, etc." style="width: 100%; padding: 8px; background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.35); border-radius: var(--radius-md); color: var(--accent-cyan); font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.2s ease; margin-bottom: 10px;">
-                  📥 Export Cardio as .tcx (${cardioPortion.minutes} min)
+              ${exportPortion ? `
+                <button class="export-tcx-btn" data-id="${w.id}" title="${cardioPortion ? 'Export the cardio portion as a .tcx file for Strava, etc.' : 'Export a generic duration + calories summary as a .tcx file for Strava, etc. — file imports can\'t carry set/rep/weight detail.'}" style="width: 100%; padding: 8px; background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.35); border-radius: var(--radius-md); color: var(--accent-cyan); font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.2s ease; margin-bottom: 10px;">
+                  ${cardioPortion ? `📥 Export Cardio as .tcx (${exportPortion.minutes} min)` : `📥 Export as .tcx (${exportPortion.minutes} min summary)`}
                 </button>
               ` : ''}
 
@@ -446,9 +453,9 @@ export function renderCalendarView(container) {
       const id = btn.getAttribute('data-id');
       const workoutLog = state.history.find(h => h.id === id);
       if (!workoutLog) return;
-      const cardioPortion = getCardioPortion(workoutLog, isCardioCategory);
-      if (!cardioPortion) return;
-      const xml = buildCardioTcx(workoutLog, cardioPortion);
+      const portion = getCardioPortion(workoutLog, isCardioCategory) || getWholeSessionPortion(workoutLog);
+      if (!portion) return;
+      const xml = buildActivityTcx(workoutLog, portion);
       const filenameSafeName = workoutLog.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'workout';
       downloadTcx(xml, `${workoutLog.date}_${filenameSafeName}`);
     });
