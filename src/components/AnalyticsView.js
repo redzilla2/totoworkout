@@ -13,8 +13,8 @@ let selectedCardioRange = 'month';
 
 // The Data Management & Backup card (export/restore-demo/clear-all) is
 // destructive and app-wide, so it's restricted to the admin account rather
-// than shown to every signed-in user.
-const ADMIN_EMAIL = 'anthonybristol@gmail.com';
+// than shown to every signed-in user. See appState.isAdmin()/ADMIN_EMAIL in
+// state.js for the single source of truth on who that is.
 
 const RANGE_DAYS = { month: 30, '6month': 182, year: 365, all: Infinity };
 const RANGE_LABELS = { month: 'Month', '6month': '6 Month', year: 'Year', all: 'All' };
@@ -87,7 +87,7 @@ export function renderAnalyticsView(container) {
   const sortedCardioMinutes = Object.keys(cardioMinutesByWeek).sort().map(date => ({ date, value: cardioMinutesByWeek[date] }));
   const filteredCardioMinutes = filterPointsByRange(sortedCardioMinutes, selectedCardioRange);
 
-  const isAdmin = (appState.getUserEmail() || '').toLowerCase() === ADMIN_EMAIL;
+  const isAdmin = appState.isAdmin();
 
   container.innerHTML = `
     <!-- Top Summary Grid -->
@@ -304,6 +304,10 @@ export function renderAnalyticsView(container) {
           <button class="btn btn-danger" id="clear-data-btn">
             🗑️ Clear All App Data
           </button>
+
+          <button class="btn btn-secondary" id="open-admin-btn">
+            🔐 Master Admin →
+          </button>
         </div>
       </div>
     ` : ''}
@@ -334,6 +338,10 @@ export function renderAnalyticsView(container) {
     if (confirm('Are you sure you want to clear all workout history and state?')) {
       appState.clearAllData();
     }
+  });
+
+  container.querySelector('#open-admin-btn')?.addEventListener('click', () => {
+    appState.setView('admin');
   });
 
   container.querySelector('#log-weight-form')?.addEventListener('submit', (e) => {

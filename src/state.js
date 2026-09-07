@@ -8,6 +8,13 @@ import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 const STORAGE_KEY = 'totoworkouts_app_state_v4'; // Version bump for streak flag sync
 const CLOUD_SAVE_DEBOUNCE_MS = 1000;
 
+// The one account allowed onto the hidden Master Admin page (master routine
+// catalog + user list/delete). Mirrored server-side in supabase/schema.sql's
+// RLS policies and admin_list_users()/admin_delete_user() — changing it here
+// alone does NOT grant any real access, since every privileged read/write is
+// re-checked against the caller's own JWT email on the database side too.
+export const ADMIN_EMAIL = 'anthonybristol@gmail.com';
+
 // Day-of-week (0=Sun..6=Sat) -> routineId|null. Defaults to the Upper/Lower Split
 // (Anthony's current program) on Mon/Tue/Thu/Fri, rest days elsewhere — fully
 // editable per day from the Weekly Schedule editor.
@@ -243,7 +250,15 @@ class AppState {
       await this.saveToCloud();
       this.notifyListeners();
     } else {
-      // First sign-in on this account: push whatever's on this device up to the cloud.
+      // First sign-in on this account (no app_state row yet): seed routines
+      // from the admin-curated master catalog if one's been published,
+      // instead of always the hardcoded defaults baked into this build.
+      // Only a genuinely brand-new account ever reaches this branch — an
+      // existing account always has a row by the time it signs in again, so
+      // this can never touch anyone's already-saved routines.
+      const masterRoutines = await this.fetchMasterRoutines();
+      if (masterRoutines) this.state.routines = masterRoutines;
+      // Push whatever's on this device (now possibly master-seeded) up to the cloud.
       await this.saveToCloud();
       this.notifyListeners();
     }
@@ -413,6 +428,74 @@ class AppState {
 
   getUserEmail() {
     return this.session?.user?.email || null;
+  }
+
+  isAdmin() {
+    return (this.getUserEmail() || '').toLowerCase() === ADMIN_EMAIL;
+  }
+
+  // Reads the admin-curated master routine catalog, if one has been saved —
+  // used only to seed a brand-new account's very first routines (see the
+  // "no existing app_state row" branch of loadCloudState() below). Returns
+  // null when unconfigured, unset, or empty, so callers can fall back to the
+  // hardcoded DEFAULT_ROUTINES exactly as before.
+  async fetchMasterRoutines() {
+    if (!isSupabaseConfigured) return null;
+    const { data, error } = await supabase
+      .from('master_routines')
+      .select('routines')
+      .eq('id', 'singleton')
+      .maybeSingle();
+    if (error) {
+      console.error('Failed to fetch master routines:', error);
+      return null;
+    }
+    if (!data || !Array.isArray(data.routines) || data.routines.length === 0) return null;
+    return data.routines;
+  }
+
+  // Admin-only: loads the master catalog for editing on the Admin page,
+  // falling back to a fresh copy of the current code defaults when nothing's
+  // been saved yet (so the admin edits from a real starting point instead of
+  // a blank list). Never touches this.state — kept separate from the
+  // regular per-user routines.
+  async loadMasterRoutinesForAdmin() {
+    if (!isSupabaseConfigured) throw new Error('Cloud sync not configured');
+    const { data, error } = await supabase
+      .from('master_routines')
+      .select('routines')
+      .eq('id', 'singleton')
+      .maybeSingle();
+    if (error) throw error;
+    if (data && Array.isArray(data.routines) && data.routines.length > 0) return data.routines;
+    // Deep-clone so edits never mutate the shared DEFAULT_ROUTINES module constant.
+    return JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
+  }
+
+  // Admin-only: publishes the master catalog. Only ever affects brand-new
+  // signups going forward (see fetchMasterRoutines()) — existing accounts'
+  // already-saved routines are never touched by this.
+  async saveMasterRoutines(routines) {
+    if (!isSupabaseConfigured) throw new Error('Cloud sync not configured');
+    const { error } = await supabase
+      .from('master_routines')
+      .upsert({ id: 'singleton', routines });
+    if (error) throw error;
+  }
+
+  // Admin-only: the RLS-protected SQL functions do the real authorization
+  // check server-side (see schema.sql) — these are thin wrappers.
+  async adminListUsers() {
+    if (!isSupabaseConfigured) throw new Error('Cloud sync not configured');
+    const { data, error } = await supabase.rpc('admin_list_users');
+    if (error) throw error;
+    return data || [];
+  }
+
+  async adminDeleteUser(userId) {
+    if (!isSupabaseConfigured) throw new Error('Cloud sync not configured');
+    const { error } = await supabase.rpc('admin_delete_user', { target_user_id: userId });
+    if (error) throw error;
   }
 
   enableLocalOnly() {
