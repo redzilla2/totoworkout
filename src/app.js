@@ -7,6 +7,7 @@ import { renderAuthView } from './components/AuthView.js';
 import { renderUpdatePasswordView } from './components/UpdatePasswordView.js';
 import { renderScheduleEditorView } from './components/ScheduleEditorView.js';
 import { renderOnboardingView } from './components/OnboardingView.js';
+import { renderAdminView } from './components/AdminView.js';
 
 export async function initApp() {
   const appRoot = document.getElementById('app');
@@ -92,6 +93,7 @@ export async function initApp() {
       else if (currentView === 'routines') renderRoutinesView(contentEl);
       else if (currentView === 'schedule-editor') renderScheduleEditorView(contentEl);
       else if (currentView === 'analytics') renderAnalyticsView(contentEl);
+      else if (currentView === 'admin') renderAdminView(contentEl);
     }
 
     // Nav Item Click Handlers
