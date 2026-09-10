@@ -98,8 +98,12 @@ begin
     raise exception 'not authorized';
   end if;
 
+  -- auth.users.email is varchar, not text — cast it explicitly, since
+  -- Postgres requires an exact type match against the declared return
+  -- type above (a varchar/text mismatch fails at call time with
+  -- "structure of query does not match function result type").
   return query
-    select u.id, u.email, u.created_at, u.last_sign_in_at
+    select u.id, u.email::text, u.created_at, u.last_sign_in_at
     from auth.users u
     order by u.created_at desc;
 end;
