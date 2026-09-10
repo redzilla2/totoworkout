@@ -958,5 +958,23 @@ export const DEFAULT_EXERCISES = [
   { id: 'ex_fedb_weighted_ball_side_bend', name: 'Weighted Ball Side Bend', category: 'Core', equipment: 'Exercise Ball', defaultRest: 90 },
   { id: 'ex_fedb_weighted_crunches', name: 'Weighted Crunches', category: 'Core', equipment: 'Medicine Ball', defaultRest: 90 },
   { id: 'ex_fedb_weighted_sit_ups_with_bands', name: 'Weighted Sit-Ups - With Bands', category: 'Core', equipment: 'Other', defaultRest: 90 },
-  { id: 'ex_fedb_wind_sprints', name: 'Wind Sprints', category: 'Core', equipment: 'Bodyweight', defaultRest: 90 }
+  { id: 'ex_fedb_wind_sprints', name: 'Wind Sprints', category: 'Core', equipment: 'Bodyweight', defaultRest: 90 },
+
+  // Kettlebell 3 Day Program Exercises — plain/generic movements not already
+  // covered by the large "fedb_*" kettlebell catalog above (which only has
+  // specifically-named variants: one-arm/alternating/double/etc). Routines
+  // reference those existing entries directly instead of duplicating them
+  // under a new id — e.g. ex_fedb_kettlebell_windmill, not a second
+  // "Kettlebell Windmill" here.
+  { id: 'ex_kb_swing', name: 'Kettlebell Swing', category: 'Legs', equipment: 'Kettlebell', defaultRest: 60 },
+  { id: 'ex_kb_goblet_squat', name: 'Kettlebell Goblet Squat', category: 'Legs', equipment: 'Kettlebell', defaultRest: 90 },
+  { id: 'ex_kb_sumo_deadlift', name: 'Kettlebell Sumo Deadlift', category: 'Legs', equipment: 'Kettlebell', defaultRest: 90 },
+  { id: 'ex_kb_clean', name: 'Kettlebell Clean', category: 'Legs', equipment: 'Kettlebell', defaultRest: 90 },
+  { id: 'ex_kb_snatch', name: 'Kettlebell Snatch', category: 'Legs', equipment: 'Kettlebell', defaultRest: 90 },
+  { id: 'ex_kb_reverse_lunge', name: 'Kettlebell Reverse Lunge', category: 'Legs', equipment: 'Kettlebell', defaultRest: 75 },
+  { id: 'ex_kb_floor_press', name: 'Kettlebell Floor Press', category: 'Chest', equipment: 'Kettlebell / Floor', defaultRest: 90 },
+  { id: 'ex_kb_single_arm_ohp', name: 'Kettlebell Single-Arm Overhead Press', category: 'Shoulders', equipment: 'Kettlebell', defaultRest: 90 },
+  { id: 'ex_kb_push_press', name: 'Kettlebell Push Press', category: 'Shoulders', equipment: 'Kettlebell', defaultRest: 90 },
+  { id: 'ex_kb_halo', name: 'Kettlebell Halo', category: 'Shoulders', equipment: 'Kettlebell', defaultRest: 60 },
+  { id: 'ex_kb_russian_twist', name: 'Kettlebell Russian Twist', category: 'Core', equipment: 'Kettlebell', defaultRest: 45 }
 ];

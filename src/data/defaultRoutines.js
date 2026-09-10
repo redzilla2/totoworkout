@@ -367,6 +367,55 @@ export const DEFAULT_ROUTINES = [
       { exerciseId: 'ex_single_arm_db_row', defaultSets: 2, defaultReps: 15, defaultWeight: 0, repRange: '15/side' },
       { exerciseId: 'ex_fedb_dumbbell_shrug', defaultSets: 4, defaultReps: 15, defaultWeight: 0, repRange: '15,12,10,8' }
     ]
+  },
+
+  // Kettlebell Full Body Split - 3 Day Program (ballistic/full-body focus
+  // each day, rather than a body-part split — the standard way kettlebell
+  // training is programmed)
+  {
+    id: 'routine_kb_day1',
+    name: 'Kettlebell 3 Day - Day 1',
+    category: 'Full Body',
+    icon: '🔔',
+    color: '#7c3aed',
+    exercises: [
+      { exerciseId: 'ex_kb_swing', defaultSets: 4, defaultReps: 15, defaultWeight: 16 },
+      { exerciseId: 'ex_kb_goblet_squat', defaultSets: 3, defaultReps: 10, defaultWeight: 16 },
+      { exerciseId: 'ex_kb_single_arm_ohp', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8/arm' },
+      { exerciseId: 'ex_fedb_one_arm_kettlebell_row', defaultSets: 3, defaultReps: 10, defaultWeight: 16, repRange: '10/arm' },
+      { exerciseId: 'ex_fedb_kettlebell_turkish_get_up_squat_style', defaultSets: 3, defaultReps: 3, defaultWeight: 12, repRange: '3/side' },
+      { exerciseId: 'ex_kb_russian_twist', defaultSets: 3, defaultReps: 20, defaultWeight: 8 }
+    ]
+  },
+  {
+    id: 'routine_kb_day2',
+    name: 'Kettlebell 3 Day - Day 2',
+    category: 'Full Body',
+    icon: '💥',
+    color: '#0891b2',
+    exercises: [
+      { exerciseId: 'ex_kb_clean', defaultSets: 4, defaultReps: 8, defaultWeight: 16, repRange: '8/arm' },
+      { exerciseId: 'ex_kb_snatch', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8/arm' },
+      { exerciseId: 'ex_fedb_alternating_renegade_row', defaultSets: 3, defaultReps: 10, defaultWeight: 16, repRange: '5/side' },
+      { exerciseId: 'ex_kb_push_press', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8/arm' },
+      { exerciseId: 'ex_kb_reverse_lunge', defaultSets: 3, defaultReps: 10, defaultWeight: 16, repRange: '10/leg' },
+      { exerciseId: 'ex_fedb_kettlebell_windmill', defaultSets: 3, defaultReps: 6, defaultWeight: 12, repRange: '6/side' }
+    ]
+  },
+  {
+    id: 'routine_kb_day3',
+    name: 'Kettlebell 3 Day - Day 3',
+    category: 'Full Body',
+    icon: '🌀',
+    color: '#db2777',
+    exercises: [
+      { exerciseId: 'ex_kb_sumo_deadlift', defaultSets: 4, defaultReps: 10, defaultWeight: 20 },
+      { exerciseId: 'ex_fedb_kettlebell_one_legged_deadlift', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8/leg' },
+      { exerciseId: 'ex_kb_floor_press', defaultSets: 3, defaultReps: 10, defaultWeight: 16 },
+      { exerciseId: 'ex_kb_halo', defaultSets: 3, defaultReps: 10, defaultWeight: 8, repRange: '10/direction' },
+      { exerciseId: 'ex_fedb_one_arm_kettlebell_row', defaultSets: 3, defaultReps: 10, defaultWeight: 16, repRange: '10/arm' },
+      { exerciseId: 'ex_kb_russian_twist', defaultSets: 3, defaultReps: 20, defaultWeight: 8 }
+    ]
   }
 ];
 
@@ -411,5 +460,12 @@ export const PROGRAMS = [
     daysPerWeek: 5,
     equipment: 'gym',
     routineIds: ['routine_hybrid5_day1', 'routine_hybrid5_day2', 'routine_hybrid5_day3', 'routine_hybrid5_day4', 'routine_hybrid5_day5']
+  },
+  {
+    id: 'kettlebell3',
+    label: 'Kettlebell 3 Day',
+    daysPerWeek: 3,
+    equipment: 'kettlebell',
+    routineIds: ['routine_kb_day1', 'routine_kb_day2', 'routine_kb_day3']
   }
 ];
