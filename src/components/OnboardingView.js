@@ -14,7 +14,7 @@ let wizard = {
   weightKg: null,
   goal: null,           // 'lose' | 'maintain' | 'gain'
   intensity: null,      // 'gentle' | 'aggressive'
-  equipment: null,      // 'dumbbell' | 'gym'
+  equipment: null,      // 'dumbbell' | 'gym' | 'kettlebell'
   daysPerWeek: null,
   trainingDays: [],     // array of 0-6 (Sun-Sat), length === daysPerWeek once locked in
   programStartDate: null
@@ -162,7 +162,8 @@ export function renderOnboardingView(container) {
   function renderEquipment() {
     const options = [
       { id: 'dumbbell', icon: '🏠', label: 'Home', hint: 'Dumbbells only' },
-      { id: 'gym', icon: '🏋️', label: 'Full Gym', hint: 'Barbells, machines, cables' }
+      { id: 'gym', icon: '🏋️', label: 'Full Gym', hint: 'Barbells, machines, cables' },
+      { id: 'kettlebell', icon: '🔔', label: 'Kettlebell', hint: 'One or two kettlebells' }
     ];
     return `
       <div style="font-size: 1.15rem; font-weight: 800; margin-bottom: 4px;">What Do You Have Access To?</div>
