@@ -204,9 +204,10 @@ export function calculateCalorieTarget(tdee, goal, intensity) {
 /**
  * Picks the built-in program (see data/defaultRoutines.js PROGRAMS) that
  * best fits the number of days the user can train, preferring an exact
- * match on daysPerWeek and breaking ties (currently only the two 5-day
- * programs) by equipment access. Falls back to the closest daysPerWeek
- * among all programs for counts outside the 3-6 range any program covers.
+ * match on daysPerWeek and breaking ties (currently the two 4-day and two
+ * 3-day programs) by equipment access. Falls back to the closest
+ * daysPerWeek among all programs for counts outside the 3-6 range any
+ * program covers.
  */
 export function pickProgram(programs, daysPerWeek, equipment) {
   const exact = programs.filter(p => p.daysPerWeek === daysPerWeek);
