@@ -203,22 +203,29 @@ export function calculateCalorieTarget(tdee, goal, intensity) {
 
 /**
  * Picks the built-in program (see data/defaultRoutines.js PROGRAMS) that
- * best fits the number of days the user can train, preferring an exact
- * match on daysPerWeek and breaking ties (currently the two 4-day and two
- * 3-day programs) by equipment access. Falls back to the closest
- * daysPerWeek among all programs for counts outside the 3-6 range any
- * program covers.
+ * best fits the number of days the user can train. Equipment access is the
+ * primary filter — narrows to programs matching it first, since
+ * recommending one the user can't actually run (wrong equipment) is a much
+ * worse miss than being a day or two off their target frequency — then
+ * picks an exact daysPerWeek match within that group, or the closest one
+ * if no exact match exists at that equipment tier (e.g. dumbbell only has
+ * one program, at 4 days/week, so every other day count falls back to it).
+ * Only equipment types with zero programs at all (not currently possible —
+ * every equipment tier has at least one) would fall through to the full
+ * unfiltered list.
  */
 export function pickProgram(programs, daysPerWeek, equipment) {
-  const exact = programs.filter(p => p.daysPerWeek === daysPerWeek);
-  if (exact.length > 0) {
-    return exact.find(p => p.equipment === equipment) || exact[0];
-  }
-  let closest = programs[0];
-  let closestDiff = Math.abs(programs[0].daysPerWeek - daysPerWeek);
-  programs.forEach(p => {
+  const sameEquipment = programs.filter(p => p.equipment === equipment);
+  const pool = sameEquipment.length > 0 ? sameEquipment : programs;
+
+  const exact = pool.filter(p => p.daysPerWeek === daysPerWeek);
+  if (exact.length > 0) return exact[0];
+
+  let closest = pool[0];
+  let closestDiff = Math.abs(pool[0].daysPerWeek - daysPerWeek);
+  pool.forEach(p => {
     const diff = Math.abs(p.daysPerWeek - daysPerWeek);
-    if (diff < closestDiff || (diff === closestDiff && p.equipment === equipment)) {
+    if (diff < closestDiff) {
       closest = p;
       closestDiff = diff;
     }

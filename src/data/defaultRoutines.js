@@ -416,6 +416,184 @@ export const DEFAULT_ROUTINES = [
       { exerciseId: 'ex_fedb_one_arm_kettlebell_row', defaultSets: 3, defaultReps: 10, defaultWeight: 16, repRange: '10/arm' },
       { exerciseId: 'ex_kb_russian_twist', defaultSets: 3, defaultReps: 20, defaultWeight: 8 }
     ]
+  },
+
+  // Kettlebell 2 Day Program (alternating Strength / Power & Conditioning
+  // full-body days — the standard low-frequency kettlebell structure per
+  // general kettlebell-training guidance: 2-3x/week full body, blending
+  // strength work with ballistic conditioning)
+  {
+    id: 'routine_kb2_day1',
+    name: 'Kettlebell 2 Day - Day 1 (Strength Focus)',
+    category: 'Full Body',
+    icon: '🔔',
+    color: '#7c3aed',
+    exercises: [
+      { exerciseId: 'ex_kb_goblet_squat', defaultSets: 4, defaultReps: 10, defaultWeight: 20 },
+      { exerciseId: 'ex_kb_deadlift', defaultSets: 4, defaultReps: 8, defaultWeight: 20 },
+      { exerciseId: 'ex_kb_single_arm_ohp', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8/arm' },
+      { exerciseId: 'ex_fedb_one_arm_kettlebell_row', defaultSets: 3, defaultReps: 10, defaultWeight: 16, repRange: '10/arm' },
+      { exerciseId: 'ex_fedb_kettlebell_turkish_get_up_squat_style', defaultSets: 3, defaultReps: 3, defaultWeight: 12, repRange: '3/side' },
+      { exerciseId: 'ex_kb_russian_twist', defaultSets: 3, defaultReps: 20, defaultWeight: 8 }
+    ]
+  },
+  {
+    id: 'routine_kb2_day2',
+    name: 'Kettlebell 2 Day - Day 2 (Power & Conditioning Focus)',
+    category: 'Full Body',
+    icon: '💥',
+    color: '#0891b2',
+    exercises: [
+      { exerciseId: 'ex_kb_swing', defaultSets: 5, defaultReps: 15, defaultWeight: 16 },
+      { exerciseId: 'ex_kb_clean', defaultSets: 4, defaultReps: 8, defaultWeight: 16, repRange: '8/arm' },
+      { exerciseId: 'ex_kb_snatch', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8/arm' },
+      { exerciseId: 'ex_kb_reverse_lunge', defaultSets: 3, defaultReps: 10, defaultWeight: 16, repRange: '10/leg' },
+      { exerciseId: 'ex_fedb_alternating_renegade_row', defaultSets: 3, defaultReps: 10, defaultWeight: 16, repRange: '5/side' },
+      { exerciseId: 'ex_fedb_kettlebell_windmill', defaultSets: 3, defaultReps: 6, defaultWeight: 12, repRange: '6/side' }
+    ]
+  },
+
+  // Kettlebell 4 Day Program - Upper/Lower Split (source:
+  // thefitnessphantom.com/4-day-kettlebell-workout-plan, "Plan A") — mirrors
+  // the existing UpperLower 4 Day gym program's structure, just with
+  // kettlebell-only movements.
+  {
+    id: 'routine_kb4_upper1',
+    name: 'Kettlebell 4 Day - Upper 1',
+    category: 'Upper Body',
+    icon: '🔔',
+    color: '#0ea5e9',
+    exercises: [
+      { exerciseId: 'ex_kb_pushup', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-15' },
+      { exerciseId: 'ex_kb_floor_press', defaultSets: 2, defaultReps: 10, defaultWeight: 16, repRange: '10-15' },
+      { exerciseId: 'ex_kb_gorilla_row', defaultSets: 3, defaultReps: 10, defaultWeight: 16, repRange: '10-15' },
+      { exerciseId: 'ex_kb_push_press', defaultSets: 3, defaultReps: 10, defaultWeight: 12, repRange: '10-12' },
+      { exerciseId: 'ex_kb_swing', defaultSets: 3, defaultReps: 15, defaultWeight: 16, repRange: '15-20' },
+      { exerciseId: 'ex_kb_kneeling_chop', defaultSets: 2, defaultReps: 10, defaultWeight: 8, repRange: '10/side' }
+    ]
+  },
+  {
+    id: 'routine_kb4_lower1',
+    name: 'Kettlebell 4 Day - Lower 1',
+    category: 'Lower Body',
+    icon: '🦵',
+    color: '#22c55e',
+    exercises: [
+      { exerciseId: 'ex_kb_suitcase_deadlift', defaultSets: 3, defaultReps: 10, defaultWeight: 20, repRange: '10-12' },
+      { exerciseId: 'ex_kb_goblet_squat', defaultSets: 3, defaultReps: 10, defaultWeight: 20, repRange: '10-15' },
+      { exerciseId: 'ex_kb_front_lunge', defaultSets: 3, defaultReps: 10, defaultWeight: 12, repRange: '10/leg' },
+      { exerciseId: 'ex_kb_hamstring_march', defaultSets: 2, defaultReps: 10, defaultWeight: 0, repRange: '10/leg' },
+      { exerciseId: 'ex_kb_step_up', defaultSets: 3, defaultReps: 10, defaultWeight: 12, repRange: '10/leg' },
+      { exerciseId: 'ex_kb_glute_bridge', defaultSets: 3, defaultReps: 10, defaultWeight: 16, repRange: '10-12' }
+    ]
+  },
+  {
+    id: 'routine_kb4_upper2',
+    name: 'Kettlebell 4 Day - Upper 2',
+    category: 'Upper Body',
+    icon: '🔥',
+    color: '#a855f7',
+    exercises: [
+      { exerciseId: 'ex_fedb_kettlebell_seesaw_press', defaultSets: 3, defaultReps: 10, defaultWeight: 12, repRange: '10-12' },
+      { exerciseId: 'ex_fedb_alternating_renegade_row', defaultSets: 2, defaultReps: 10, defaultWeight: 16, repRange: '10-15' },
+      { exerciseId: 'ex_kb_close_grip_pushup', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10-15' },
+      { exerciseId: 'ex_kb_halo', defaultSets: 3, defaultReps: 15, defaultWeight: 8, repRange: '15-20' },
+      { exerciseId: 'ex_fedb_kettlebell_thruster', defaultSets: 2, defaultReps: 10, defaultWeight: 12, repRange: '10/side' },
+      { exerciseId: 'ex_kb_slashers', defaultSets: 2, defaultReps: 10, defaultWeight: 8, repRange: '10/side' },
+      { exerciseId: 'ex_kb_crush_curl', defaultSets: 2, defaultReps: 12, defaultWeight: 10, repRange: '12-15' }
+    ]
+  },
+  {
+    id: 'routine_kb4_lower2',
+    name: 'Kettlebell 4 Day - Lower 2',
+    category: 'Lower Body',
+    icon: '⚡',
+    color: '#f97316',
+    exercises: [
+      { exerciseId: 'ex_kb_deck_squat', defaultSets: 3, defaultReps: 10, defaultWeight: 16, repRange: '10-12' },
+      { exerciseId: 'ex_kb_bob_and_weave', defaultSets: 3, defaultReps: 10, defaultWeight: 12, repRange: '10/leg' },
+      { exerciseId: 'ex_fedb_kettlebell_one_legged_deadlift', defaultSets: 2, defaultReps: 10, defaultWeight: 12, repRange: '10/leg' },
+      { exerciseId: 'ex_kb_bulgarian_split_squat', defaultSets: 3, defaultReps: 10, defaultWeight: 12, repRange: '10/leg' },
+      { exerciseId: 'ex_kb_unilateral_leg_curl', defaultSets: 3, defaultReps: 10, defaultWeight: 0, repRange: '10/leg' }
+    ]
+  },
+
+  // Kettlebell 5 Day Program - Push/Pull/Legs Split (source:
+  // thefitnessphantom.com/5-day-kettlebell-workout-routine)
+  {
+    id: 'routine_kb5_push1',
+    name: 'Kettlebell 5 Day - Push',
+    category: 'Push',
+    icon: '📤',
+    color: '#dc2626',
+    exercises: [
+      { exerciseId: 'ex_kb_pushup', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-10' },
+      { exerciseId: 'ex_kb_single_arm_ohp', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8-12' },
+      { exerciseId: 'ex_kb_sit_and_press', defaultSets: 3, defaultReps: 6, defaultWeight: 8, repRange: '6-10' },
+      { exerciseId: 'ex_fedb_kettlebell_thruster', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8-12' },
+      { exerciseId: 'ex_kb_floor_press', defaultSets: 3, defaultReps: 10, defaultWeight: 16, repRange: '10-12' },
+      { exerciseId: 'ex_kb_push_press', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8-12' }
+    ]
+  },
+  {
+    id: 'routine_kb5_pull1',
+    name: 'Kettlebell 5 Day - Pull',
+    category: 'Pull',
+    icon: '📥',
+    color: '#2563eb',
+    exercises: [
+      { exerciseId: 'ex_kb_swing', defaultSets: 3, defaultReps: 8, defaultWeight: 16, repRange: '8-12' },
+      { exerciseId: 'ex_kb_snatch', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8-10' },
+      { exerciseId: 'ex_kb_gorilla_row', defaultSets: 3, defaultReps: 8, defaultWeight: 16, repRange: '8-12' },
+      { exerciseId: 'ex_fedb_alternating_renegade_row', defaultSets: 3, defaultReps: 8, defaultWeight: 16, repRange: '8-10' },
+      { exerciseId: 'ex_kb_pullover', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8-10' },
+      { exerciseId: 'ex_kb_deadlift', defaultSets: 3, defaultReps: 8, defaultWeight: 20, repRange: '8-10' }
+    ]
+  },
+  {
+    id: 'routine_kb5_legs1',
+    name: 'Kettlebell 5 Day - Legs & Core',
+    category: 'Legs / Core',
+    icon: '🦵',
+    color: '#16a34a',
+    exercises: [
+      { exerciseId: 'ex_kb_squat', defaultSets: 3, defaultReps: 8, defaultWeight: 20, repRange: '8-12' },
+      { exerciseId: 'ex_kb_bob_and_weave', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8-10/leg' },
+      { exerciseId: 'ex_kb_goblet_squat', defaultSets: 3, defaultReps: 8, defaultWeight: 20, repRange: '8-12' },
+      { exerciseId: 'ex_kb_good_morning', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8-10' },
+      { exerciseId: 'ex_kb_side_bend', defaultSets: 3, defaultReps: 10, defaultWeight: 8, repRange: '10-12/side' },
+      { exerciseId: 'ex_kb_russian_twist', defaultSets: 3, defaultReps: 10, defaultWeight: 8, repRange: '10-12' }
+    ]
+  },
+  {
+    id: 'routine_kb5_push2',
+    name: 'Kettlebell 5 Day - Push & Core',
+    category: 'Push',
+    icon: '🧨',
+    color: '#fb923c',
+    exercises: [
+      { exerciseId: 'ex_kb_jerk', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8-12' },
+      { exerciseId: 'ex_kb_floor_press', defaultSets: 3, defaultReps: 8, defaultWeight: 16, repRange: '8-12' },
+      { exerciseId: 'ex_kb_narrow_grip_pushup', defaultSets: 3, defaultReps: 8, defaultWeight: 0, repRange: '8-10' },
+      { exerciseId: 'ex_fedb_kettlebell_thruster', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8-12' },
+      { exerciseId: 'ex_kb_straight_arm_situp', defaultSets: 3, defaultReps: 8, defaultWeight: 8, repRange: '8-10' },
+      { exerciseId: 'ex_kb_deadbug', defaultSets: 3, defaultReps: 30, defaultWeight: 8 }
+    ]
+  },
+  {
+    id: 'routine_kb5_pull2',
+    name: 'Kettlebell 5 Day - Pull & Legs',
+    category: 'Pull',
+    icon: '🪝',
+    color: '#38bdf8',
+    exercises: [
+      { exerciseId: 'ex_kb_deadlift', defaultSets: 3, defaultReps: 8, defaultWeight: 20, repRange: '8-10' },
+      { exerciseId: 'ex_kb_suitcase_row', defaultSets: 3, defaultReps: 8, defaultWeight: 16, repRange: '8-12' },
+      { exerciseId: 'ex_kb_high_pull', defaultSets: 3, defaultReps: 8, defaultWeight: 16, repRange: '8-12' },
+      { exerciseId: 'ex_kb_swing', defaultSets: 3, defaultReps: 8, defaultWeight: 16, repRange: '8-12' },
+      { exerciseId: 'ex_kb_rack_lunge', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8-10/leg' },
+      { exerciseId: 'ex_kb_step_up', defaultSets: 3, defaultReps: 8, defaultWeight: 12, repRange: '8-12' }
+    ]
   }
 ];
 
@@ -467,5 +645,26 @@ export const PROGRAMS = [
     daysPerWeek: 3,
     equipment: 'kettlebell',
     routineIds: ['routine_kb_day1', 'routine_kb_day2', 'routine_kb_day3']
+  },
+  {
+    id: 'kettlebell2',
+    label: 'Kettlebell 2 Day',
+    daysPerWeek: 2,
+    equipment: 'kettlebell',
+    routineIds: ['routine_kb2_day1', 'routine_kb2_day2']
+  },
+  {
+    id: 'kettlebell4',
+    label: 'Kettlebell 4 Day',
+    daysPerWeek: 4,
+    equipment: 'kettlebell',
+    routineIds: ['routine_kb4_upper1', 'routine_kb4_lower1', 'routine_kb4_upper2', 'routine_kb4_lower2']
+  },
+  {
+    id: 'kettlebell5',
+    label: 'Kettlebell 5 Day',
+    daysPerWeek: 5,
+    equipment: 'kettlebell',
+    routineIds: ['routine_kb5_push1', 'routine_kb5_pull1', 'routine_kb5_legs1', 'routine_kb5_push2', 'routine_kb5_pull2']
   }
 ];
