@@ -1,7 +1,7 @@
 import { DEFAULT_EXERCISES } from './data/exercises.js';
 import { DEFAULT_ROUTINES, PROGRAMS, REMOVED_BUILTIN_ROUTINE_IDS } from './data/defaultRoutines.js';
 import { generateSampleHistory } from './data/sampleHistory.js';
-import { formatDate, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg, calculateBMR, calculateTDEE, calculateCalorieTarget, pickProgram } from './utils/helpers.js';
+import { formatDate, isCardioCategory, estimateStrengthCalories, getLatestBodyWeightKg, calculateBMR, calculateTDEE, calculateCalorieTarget, pickProgram, findLastLoggedExercise } from './utils/helpers.js';
 import { moveArrayItem } from './utils/dragReorder.js';
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 
@@ -639,25 +639,36 @@ class AppState {
       exercises: routine.exercises.map(exItem => {
         const exMeta = this.state.exercises.find(e => e.id === exItem.exerciseId) || { name: exItem.exerciseId, category: routine.category };
         const cardio = isCardioCategory(exMeta.category);
+        // Carries over exactly what was logged the last time this exercise
+        // was performed (any session, not just this routine) — weight,
+        // reps/minutes/calories, and even the set count — so a session
+        // starts from where you actually left off instead of always
+        // resetting to the routine's static defaults. Falls back to those
+        // defaults the first time an exercise is ever done.
+        const lastLogged = findLastLoggedExercise(this.state.history, exMeta.name);
 
         let sets;
         if (cardio) {
           // Cardio is logged as a single minutes/calories block, not multiple
           // sets of reps/weight.
-          sets = [{
-            setNum: 1,
+          sets = (lastLogged?.sets?.length > 0 ? lastLogged.sets : [{
             minutes: exItem.defaultMinutes || 20,
-            calories: exItem.defaultCalories || 150,
+            calories: exItem.defaultCalories || 150
+          }]).map((s, i) => ({
+            setNum: i + 1,
+            minutes: s.minutes ?? (exItem.defaultMinutes || 20),
+            calories: s.calories ?? (exItem.defaultCalories || 150),
             completed: false
-          }];
+          }));
         } else {
-          const setsCount = exItem.defaultSets || 3;
+          const source = lastLogged?.sets?.length > 0 ? lastLogged.sets : null;
+          const setsCount = source ? source.length : (exItem.defaultSets || 3);
           sets = [];
           for (let i = 0; i < setsCount; i++) {
             sets.push({
               setNum: i + 1,
-              reps: exItem.defaultReps || 10,
-              weight: exItem.defaultWeight || 0,
+              reps: source ? (source[i].reps ?? (exItem.defaultReps || 10)) : (exItem.defaultReps || 10),
+              weight: source ? (source[i].weight ?? (exItem.defaultWeight || 0)) : (exItem.defaultWeight || 0),
               completed: false
             });
           }
