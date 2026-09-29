@@ -1,6 +1,6 @@
 import { appState } from '../state.js';
 import { RestTimer } from '../utils/timer.js';
-import { isCardioCategory, renderRoutineOptionGroups } from '../utils/helpers.js';
+import { isCardioCategory, renderRoutineOptionGroups, findLastLoggedExercise } from '../utils/helpers.js';
 import { enableDragReorder, moveArrayItem } from '../utils/dragReorder.js';
 
 let currentRestTimer = null;
@@ -401,9 +401,11 @@ export function renderActiveWorkoutView(container) {
     container.querySelector('#session-exercise-select').innerHTML = renderSessionExerciseOptions(filtered);
   });
 
-  // Adds an exercise to *this session only* — 3 sets x 12 reps default (or a
-  // single 20min/150cal cardio block), never touches the underlying routine
-  // template.
+  // Adds an exercise to *this session only* — prefilled from the last time
+  // it was logged (any session), same as a routine-sourced exercise (see
+  // startWorkoutFromRoutine in state.js); falls back to 3x12 (or a single
+  // 20min/150cal cardio block) the first time it's ever done. Never touches
+  // the underlying routine template.
   container.querySelector('#add-session-exercise-btn')?.addEventListener('click', () => {
     const exerciseId = container.querySelector('#session-exercise-select').value;
     if (!exerciseId) return;
@@ -412,9 +414,25 @@ export function renderActiveWorkoutView(container) {
     if (!exMeta) return;
 
     const cardio = isCardioCategory(exMeta.category);
-    const sets = cardio
-      ? [{ setNum: 1, minutes: 20, calories: 150, completed: false }]
-      : [1, 2, 3].map(i => ({ setNum: i, reps: 12, weight: 0, completed: false }));
+    const lastLogged = findLastLoggedExercise(state.history, exMeta.name);
+    const source = lastLogged?.sets?.length > 0 ? lastLogged.sets : null;
+    let sets;
+    if (cardio) {
+      sets = (source || [{ minutes: 20, calories: 150 }]).map((s, i) => ({
+        setNum: i + 1, minutes: s.minutes ?? 20, calories: s.calories ?? 150, completed: false
+      }));
+    } else {
+      const setsCount = source ? source.length : 3;
+      sets = [];
+      for (let i = 0; i < setsCount; i++) {
+        sets.push({
+          setNum: i + 1,
+          reps: source ? (source[i].reps ?? 12) : 12,
+          weight: source ? (source[i].weight ?? 0) : 0,
+          completed: false
+        });
+      }
+    }
 
     session.exercises.push({
       name: exMeta.name,

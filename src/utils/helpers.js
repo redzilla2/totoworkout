@@ -77,6 +77,32 @@ export function isCardioCategory(category) {
   return category === 'Cardio';
 }
 
+/**
+ * Finds the most recently logged instance of a specific exercise (matched
+ * by name — logged exercises don't carry their catalog exerciseId, and
+ * every exercise name in the catalog is unique) across all workout
+ * history. Used to prefill a fresh session's sets with what was actually
+ * done last time (weight, reps, minutes/calories, and set count) instead
+ * of always resetting to the routine's static defaults — see
+ * startWorkoutFromRoutine() in state.js and the "+ Add to Workout" handler
+ * in ActiveWorkoutView.js.
+ *
+ * Matches across *any* past session, not just ones from the same routine —
+ * if this exercise was logged more recently somewhere else, that's still
+ * the most accurate "what did I lift last time" answer. Returns null if
+ * this exercise has never been logged before.
+ */
+export function findLastLoggedExercise(history, exerciseName) {
+  let best = null; // { date, exercise }
+  (history || []).forEach(log => {
+    const match = (log.exercises || []).find(ex => ex.name === exerciseName);
+    if (match && (!best || log.date > best.date)) {
+      best = { date: log.date, exercise: match };
+    }
+  });
+  return best ? best.exercise : null;
+}
+
 // --- Calorie estimation for strength/resistance training ---
 //
 // Cardio exercises already carry a user-entered calorie count per set, but
